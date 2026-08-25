@@ -170,7 +170,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onClo
           ))}
         </nav>
 
-        {/* Footer */}
+        {/* Footer */}  ///////
         <div className="sidebar-foot">
           <div className="nav-item" onClick={logout}>
             <LogOut />
