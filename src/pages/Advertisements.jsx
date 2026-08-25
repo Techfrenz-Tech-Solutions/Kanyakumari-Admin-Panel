@@ -126,7 +126,7 @@ export default function Advertisements() {
             {form.image ? (
               <div className="image-preview">
                 <img src={form.image} alt="" />
-                <button className="remove-btn" onClick={() => setForm({ ...form, image: '' })}>×</button>
+                <button className="remove-btn" onClick={() => setForm({ ...form, image: '' })}></button>
               </div>
             ) : (
               <div className="dropzone" onClick={() => fileRef.current?.click()}>

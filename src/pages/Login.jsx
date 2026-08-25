@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { Mail, Lock, Eye } from '../components/ui/Icons.jsx';
+import logoImg from '../Image/WhatsApp_Image_2026-08-24_at_2.52.11_PM-removebg-preview.png';
 
 // Inline EyeOff icon (not yet in Icons.jsx)
 function EyeOffIcon(props) {
@@ -75,8 +76,7 @@ export default function Login() {
       <div className="login-card">
         {/* Brand mark */}
         <div className="login-mark">
-          <div className="mark" style={{ boxShadow: '0 6px 20px rgba(200,30,30,0.45)' }}>KN</div>
-          <h1>Kanyakumari News</h1>
+          <img src={logoImg} alt="Kanyakumari Today" className="login-logo" />
           <div className="sub">Admin Portal</div>
         </div>
 
