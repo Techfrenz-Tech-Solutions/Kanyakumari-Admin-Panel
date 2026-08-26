@@ -126,18 +126,6 @@ export const trafficSources = [];
 
 export const deviceDistribution = [];
 
-// ── Current admin (used by AuthContext / Profile) ────────────────────────────
-
-export const currentAdmin = {
-  name:     'Admin User',
-  email:    'admin@dailywire.in',
-  role:     'Super Admin',
-  initials: 'AU',
-  phone:    '',
-  bio:      '',
-  joinDate: '',
-};
-
 // ── Default site settings ────────────────────────────────────────────────────
 
 export const defaultSettings = {

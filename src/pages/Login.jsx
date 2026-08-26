@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { Mail, Lock, Eye } from '../components/ui/Icons.jsx';
@@ -20,10 +20,10 @@ export default function Login() {
   const { login } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('admin@dailywire.in');
+  const location = useLocation();
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
-  const [remember, setRemember] = useState(true);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -39,12 +39,16 @@ export default function Login() {
     }
     setError('');
     setLoading(true);
-    // Simulate brief loading
-    await new Promise((r) => setTimeout(r, 700));
-    login(email);
-    toast.success('Welcome back', 'You have signed in successfully.');
-    navigate('/');
-    setLoading(false);
+    try {
+      await login(email.trim(), password);
+      toast.success('Welcome back', 'You have signed in successfully.');
+      const destination = location.state?.from?.pathname || '/';
+      navigate(destination, { replace: true });
+    } catch (requestError) {
+      setError(requestError.message || 'Sign in failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -142,20 +146,10 @@ export default function Login() {
             </div>
           </div>
 
-          {/* Remember me + forgot */}
-          <div className="flex-between" style={{ fontSize: 12.5 }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', color: 'var(--text-muted)' }}>
-              <input
-                type="checkbox"
-                checked={remember}
-                onChange={(e) => setRemember(e.target.checked)}
-                style={{ accentColor: 'var(--red-500)', width: 14, height: 14 }}
-              />
-              Remember me
-            </label>
-            <span style={{ color: 'var(--red-500)', cursor: 'pointer', fontWeight: 600 }}>
+          <div className="flex-between" style={{ fontSize: 12.5, justifyContent: 'flex-end' }}>
+            <Link to="/forgot-password" style={{ color: 'var(--red-500)', fontWeight: 600 }}>
               Forgot password?
-            </span>
+            </Link>
           </div>
 
           {/* Error message */}
@@ -189,12 +183,6 @@ export default function Login() {
           </button>
         </form>
 
-        {/* Demo notice */}
-        <div className="login-demo" style={{ marginTop: 18 }}>
-          <span style={{ color: 'var(--amber-500)', fontWeight: 700 }}>Demo Mode — </span>
-          Use <strong>admin@dailywire.in</strong> with any password.<br />
-          All data is stored in your browser's localStorage.
-        </div>
       </div>
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
