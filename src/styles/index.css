@@ -538,7 +538,7 @@ table.data-table tbody tr:last-child td { border-bottom: none; }
 .toast.success { border-left-color: var(--green-500); }
 .toast.error { border-left-color: var(--red-500); }
 .toast.info { border-left-color: var(--blue-500); }
-@keyframes toast-in { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: none; } }
+@keyframes toast-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
 .toast .icon { flex: none; width: 18px; height: 18px; margin-top: 1px; }
 .toast .t { font-size: 13px; font-weight: 700; }
 .toast .m { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
