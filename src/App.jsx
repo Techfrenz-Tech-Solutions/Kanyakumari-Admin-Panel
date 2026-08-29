@@ -5,14 +5,11 @@ import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import NewsList from './pages/NewsList.jsx';
 import AddEditNews from './pages/AddEditNews.jsx';
-import DraftsList from './pages/DraftsList.jsx';
-import PublishedList from './pages/PublishedList.jsx';
-import ScheduledList from './pages/ScheduledList.jsx';
-import PendingApproval from './pages/PendingApproval.jsx';
 import BreakingNews from './pages/BreakingNews.jsx';
 import Categories from './pages/Categories.jsx';
 import SubCategories from './pages/SubCategories.jsx';
 import Reporters from './pages/Reporters.jsx';
+import Areas from './pages/Areas.jsx';
 import Authors from './pages/Authors.jsx';
 import Editors from './pages/Editors.jsx';
 import MediaLibrary from './pages/MediaLibrary.jsx';
@@ -92,14 +89,15 @@ export default function App() {
         <Route path="news" element={protectedPage('news.view', <NewsList />)} />
         <Route path="news/add" element={protectedPage('news.create', <AddEditNews />)} />
         <Route path="news/edit/:id" element={protectedPage('news.edit', <AddEditNews />)} />
-        <Route path="news/drafts" element={protectedPage('news.view', <DraftsList />)} />
-        <Route path="news/published" element={protectedPage('news.view', <PublishedList />)} />
-        <Route path="news/scheduled" element={protectedPage('news.view', <ScheduledList />)} />
-        <Route path="news/pending" element={protectedPage('news.view', <PendingApproval />)} />
+        <Route path="news/drafts" element={protectedPage('news.view', <NewsList fixedStatus="draft" />)} />
+        <Route path="news/published" element={protectedPage('news.view', <NewsList fixedStatus="published" />)} />
+        <Route path="news/scheduled" element={protectedPage('news.view', <NewsList fixedStatus="scheduled" />)} />
+        <Route path="news/pending" element={protectedPage('news.view', <NewsList fixedStatus="pending" />)} />
         <Route path="news/breaking" element={protectedPage('news.view', <BreakingNews />)} />
         {/* Categories */}
         <Route path="categories" element={protectedPage('categories.view', <Categories />)} />
         <Route path="subcategories" element={protectedPage('categories.view', <SubCategories />)} />
+        <Route path="areas" element={protectedPage('categories.view', <Areas />)} />
         {/* Team */}
         <Route path="reporters" element={protectedPage('reporters.view', <Reporters />)} />
         <Route path="authors" element={protectedPage('reporters.view', <Authors />)} />

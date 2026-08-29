@@ -2,228 +2,152 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PageHead } from '../components/ui/PageHead.jsx';
 import { Upload, X, Save, Send, Calendar, Zap } from '../components/ui/Icons.jsx';
-import { loadData, saveData, uid } from '../utils/storage.js';
-import { seedNews, seedCategories, seedReporters } from '../data/mockData.js';
+import { articlesApi, mapArticlePayload } from '../api/articles.js';
+import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 
+const today = () => new Date().toISOString().slice(0, 10);
 const emptyForm = {
-  title: '',
-  shortDescription: '',
-  content: '',
-  image: '',
-  category: '',
-  subCategory: '',
-  author: '',
-  location: '',
-  tags: [],
-  publishDate: new Date().toISOString().slice(0, 10),
-  publishTime: '09:00',
-  isBreaking: false,
+  title: '', titleTA: '', shortDescription: '', excerptTA: '', content: '', contentTA: '',
+  categoryId: '', subCategoryId: '', authorId: '', areaId: '', location: '',
+  featuredImageId: null, image: '', tags: [], publishDate: today(), publishTime: '09:00',
+  isBreaking: false, isFeatured: false, status: 'draft',
 };
+const itemsOf = (value) => Array.isArray(value) ? value : value?.items || value?.categories || value?.subcategories || value?.reporters || value?.areas || [];
 
 export default function AddEditNews() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const toast = useToast();
   const isEdit = Boolean(id);
+  const toast = useToast();
+  const { hasPermission } = useAuth();
   const fileRef = useRef(null);
-
-  const categories = loadData('categories', seedCategories);
-  const reporters = loadData('reporters', seedReporters);
-
   const [form, setForm] = useState(emptyForm);
+  const [references, setReferences] = useState({ categories: [], subcategories: [], reporters: [], areas: [], media: [] });
   const [tagInput, setTagInput] = useState('');
   const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(isEdit);
+  const [loadError, setLoadError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
-    if (isEdit) {
-      const news = loadData('news', seedNews);
-      const existing = news.find((n) => n.id === id);
-      if (existing) setForm({ ...emptyForm, ...existing });
-    }
-  }, [id, isEdit]);
+    const controller = new AbortController();
+    setLoading(true); setLoadError('');
+    const requests = [
+      articlesApi.listCategories({ signal: controller.signal }), articlesApi.listSubcategories({ signal: controller.signal }),
+      articlesApi.listReporters({ signal: controller.signal }), articlesApi.listAreas({ signal: controller.signal }),
+      hasPermission('media.view') ? articlesApi.listMedia({ signal: controller.signal }) : Promise.resolve({ items: [] }),
+      isEdit ? articlesApi.get(id, { signal: controller.signal }) : Promise.resolve(null),
+    ];
+    Promise.all(requests).then(([categories, subcategories, reporters, areas, media, article]) => {
+      setReferences({ categories: itemsOf(categories), subcategories: itemsOf(subcategories), reporters: itemsOf(reporters), areas: itemsOf(areas), media: itemsOf(media) });
+      if (article) setForm({ ...emptyForm, ...article, categoryId: article.categoryId || '', subCategoryId: article.subCategoryId || '', authorId: article.authorId || '', areaId: article.areaId || '' });
+    }).catch((err) => { if (err.code !== 'REQUEST_ABORTED') setLoadError(err.message); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [hasPermission, id, isEdit]);
 
-  const selectedCategory = categories.find((c) => c.name === form.category);
-
-  const setField = (key, value) => setForm((f) => ({ ...f, [key]: value }));
-
+  const setField = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+  const visibleSubcategories = references.subcategories.filter((item) => !form.categoryId || String(item.parentCategoryId ?? item.categoryId ?? item.category?.id) === String(form.categoryId));
   const validate = () => {
-    const errs = {};
-    if (!form.title.trim()) errs.title = 'Title is required.';
-    if (!form.shortDescription.trim()) errs.shortDescription = 'Short description is required.';
-    if (!form.content.trim()) errs.content = 'Full content is required.';
-    if (!form.category) errs.category = 'Select a category.';
-    if (!form.author) errs.author = 'Select an author.';
-    setErrors(errs);
-    return Object.keys(errs).length === 0;
+    const next = {};
+    if (!form.title.trim()) next.title = 'Title is required.';
+    if (!form.shortDescription.trim()) next.shortDescription = 'Short description is required.';
+    if (!form.content.trim()) next.content = 'Full content is required.';
+    if (!form.categoryId) next.categoryId = 'Select a category.';
+    if (!form.authorId) next.authorId = 'Select an author.';
+    setErrors(next); return !Object.keys(next).length;
   };
 
-  const handleImage = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setField('image', reader.result);
-    reader.readAsDataURL(file);
+  const uploadImage = async (event) => {
+    const file = event.target.files?.[0]; event.target.value = '';
+    if (!file || uploading) return;
+    setUploading(true);
+    try {
+      const media = await articlesApi.uploadMedia(file);
+      setForm((current) => ({ ...current, featuredImageId: media.id, image: media.url }));
+      setReferences((current) => ({ ...current, media: [media, ...current.media.filter((item) => item.id !== media.id)] }));
+      toast.success('Image uploaded', file.name);
+    } catch (err) { toast.error('Image upload failed', err.message); }
+    finally { setUploading(false); }
   };
 
-  const addTag = (e) => {
-    if ((e.key === 'Enter' || e.key === ',') && tagInput.trim()) {
-      e.preventDefault();
-      if (!form.tags.includes(tagInput.trim())) setField('tags', [...form.tags, tagInput.trim()]);
-      setTagInput('');
-    }
+  const addTag = (event) => {
+    if (!['Enter', ','].includes(event.key) || !tagInput.trim()) return;
+    event.preventDefault();
+    if (!form.tags.includes(tagInput.trim()) && form.tags.length < 10) setField('tags', [...form.tags, tagInput.trim()]);
+    setTagInput('');
   };
-  const removeTag = (tag) => setField('tags', form.tags.filter((t) => t !== tag));
 
-  const persist = (status) => {
-    if (!validate()) {
-      toast.error('Fix the highlighted fields', 'Some required fields are missing.');
+  const persist = async (targetStatus) => {
+    if (submitting || !validate()) {
+      if (!submitting) toast.error('Fix the highlighted fields', 'Some required fields are missing.');
       return;
     }
-    const news = loadData('news', seedNews);
-    const now = new Date().toISOString().slice(0, 10);
-    const record = {
-      ...form,
-      image: form.image || `https://picsum.photos/seed/${uid('n')}/640/400`,
-      status,
-      views: form.views || 0,
-      createdAt: form.createdAt || now,
-    };
-
-    let updated;
-    if (isEdit) {
-      record.id = id;
-      updated = news.map((n) => (n.id === id ? record : n));
-      toast.success('Article updated', `Saved as ${status}.`);
-    } else {
-      record.id = uid('news');
-      updated = [record, ...news];
-      toast.success('Article created', `Saved as ${status}.`);
-    }
-    saveData('news', updated);
-    navigate('/news');
+    setSubmitting(true);
+    try {
+      if (targetStatus === 'scheduled') {
+        const scheduled = new Date(`${form.publishDate}T${form.publishTime}:00+05:30`);
+        if (!form.publishDate || !form.publishTime || Number.isNaN(scheduled.getTime()) || scheduled <= new Date()) {
+          throw new Error('Choose a future publish date and time for scheduling.');
+        }
+      }
+      if (!isEdit) {
+        await articlesApi.create(mapArticlePayload({ ...form, status: targetStatus }));
+      } else {
+        const updateForm = { ...form };
+        delete updateForm.status;
+        if (targetStatus === 'scheduled') updateForm.status = 'scheduled';
+        await articlesApi.update(id, mapArticlePayload(updateForm));
+        if (targetStatus === 'pending' && form.status === 'draft') await articlesApi.changeStatus(id, 'submit');
+        if (targetStatus === 'published' && form.status !== 'published') await articlesApi.changeStatus(id, 'publish-now');
+      }
+      const finalStatus = isEdit && targetStatus === 'draft' ? form.status : targetStatus;
+      toast.success(isEdit ? 'Article updated' : 'Article created', `Server confirmed ${finalStatus} status.`);
+      navigate('/news');
+    } catch (err) { toast.error('Unable to save article', err.message); }
+    finally { setSubmitting(false); }
   };
 
-  return (
-    <div>
-      <PageHead
-        eyebrow={isEdit ? 'Edit Article' : 'New Article'}
-        title={isEdit ? 'Edit News' : 'Add News'}
-        desc="Fill in the article details, then save as draft, publish immediately, or schedule."
-      />
+  if (loading) return <div className="card card-pad faint">Loading article editor…</div>;
+  if (loadError) return <div className="card card-pad"><div className="field-error" role="alert">{loadError}</div><button className="btn btn-secondary" onClick={() => navigate('/news')}>Back to news</button></div>;
 
-      <div className="two-col">
-        <div className="card card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-          <div className="field">
-            <label>News Title *</label>
-            <input className={`input ${errors.title ? 'error' : ''}`} value={form.title} onChange={(e) => setField('title', e.target.value)} placeholder="Enter a clear, concise headline" />
-            {errors.title && <div className="field-error">{errors.title}</div>}
-          </div>
+  const input = (field, label, tamil = false) => <div className="field"><label>{label}</label><input className={`input ${errors[field] ? 'error' : ''}`} lang={tamil ? 'ta' : undefined} value={form[field] || ''} onChange={(e) => setField(field, e.target.value)} />{errors[field] && <div className="field-error">{errors[field]}</div>}</div>;
+  const textarea = (field, label, rows, tamil = false) => <div className="field"><label>{label}</label><textarea className={`input ${errors[field] ? 'error' : ''}`} lang={tamil ? 'ta' : undefined} rows={rows} value={form[field] || ''} onChange={(e) => setField(field, e.target.value)} />{errors[field] && <div className="field-error">{errors[field]}</div>}</div>;
 
-          <div className="field">
-            <label>Short Description *</label>
-            <textarea className={`input ${errors.shortDescription ? 'error' : ''}`} rows={2} value={form.shortDescription} onChange={(e) => setField('shortDescription', e.target.value)} placeholder="One or two sentences for listings and social previews" />
-            {errors.shortDescription && <div className="field-error">{errors.shortDescription}</div>}
-          </div>
-
-          <div className="field">
-            <label>Full News Content *</label>
-            <textarea className={`input ${errors.content ? 'error' : ''}`} rows={10} value={form.content} onChange={(e) => setField('content', e.target.value)} placeholder="Write the full article body (HTML formatting supported)" />
-            {errors.content && <div className="field-error">{errors.content}</div>}
-          </div>
-
-          <div className="field">
-            <label>Featured Image</label>
-            {form.image ? (
-              <div className="image-preview" style={{ maxWidth: 340 }}>
-                <img src={form.image} alt="Featured" />
-                <button className="remove-btn" onClick={() => setField('image', '')}><X /></button>
-              </div>
-            ) : (
-              <div className="dropzone" style={{ maxWidth: 340 }} onClick={() => fileRef.current?.click()}>
-                <Upload />
-                <div style={{ fontWeight: 600, fontSize: 13 }}>Click to upload an image</div>
-                <div className="faint" style={{ fontSize: 11.5, marginTop: 3 }}>PNG, JPG up to 5MB</div>
-              </div>
-            )}
-            <input ref={fileRef} type="file" accept="image/*" hidden onChange={handleImage} />
-          </div>
-
-          <div className="field">
-            <label>Tags</label>
-            <div className="tag-input-wrap">
-              {form.tags.map((t) => (
-                <span className="tag-chip" key={t}>{t}<button onClick={() => removeTag(t)}><X style={{ width: 11, height: 11 }} /></button></span>
-              ))}
-              <input value={tagInput} onChange={(e) => setTagInput(e.target.value)} onKeyDown={addTag} placeholder="Type a tag and press Enter" />
-            </div>
-          </div>
+  return <div>
+    <PageHead eyebrow={isEdit ? 'Edit Article' : 'New Article'} title={isEdit ? 'Edit News' : 'Add News'} desc="Create bilingual stories and use the server-backed editorial workflow." />
+    <div className="two-col">
+      <div className="card card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+        {input('title', 'News Title *')}{input('titleTA', 'Tamil Title', true)}
+        {textarea('shortDescription', 'Short Description *', 2)}{textarea('excerptTA', 'Tamil Short Description', 2, true)}
+        {textarea('content', 'Full News Content *', 10)}{textarea('contentTA', 'Tamil Content', 10, true)}
+        <div className="field"><label>Featured Image</label>
+          {form.image && <div className="image-preview" style={{ maxWidth: 340 }}><img src={form.image} alt="Featured" /><button type="button" className="remove-btn" onClick={() => setForm((current) => ({ ...current, image: '', featuredImageId: null }))}><X /></button></div>}
+          {hasPermission('media.upload') && <><button type="button" className="btn btn-secondary" disabled={uploading} onClick={() => fileRef.current?.click()}><Upload />{uploading ? 'Uploading…' : 'Upload image'}</button><input ref={fileRef} type="file" accept="image/*" hidden onChange={uploadImage} /></>}
+          {hasPermission('media.view') && references.media.length > 0 && <select className="select" value={form.featuredImageId || ''} onChange={(e) => { const media = references.media.find((item) => String(item.id) === e.target.value); setForm((current) => ({ ...current, featuredImageId: media?.id || null, image: media?.url || '' })); }}><option value="">Choose from media library</option>{references.media.map((item) => <option key={item.id} value={item.id}>{item.name || item.originalName || `Image ${item.id}`}</option>)}</select>}
         </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div className="card card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <h3 style={{ fontSize: 14 }}>Publishing</h3>
-
-            <div className="field">
-              <label>Category *</label>
-              <select className={`select ${errors.category ? 'error' : ''}`} value={form.category} onChange={(e) => setField('category', e.target.value)}>
-                <option value="">Select category</option>
-                {categories.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
-              </select>
-              {errors.category && <div className="field-error">{errors.category}</div>}
-            </div>
-
-            <div className="field">
-              <label>Sub Category</label>
-              <select className="select" value={form.subCategory} onChange={(e) => setField('subCategory', e.target.value)}>
-                <option value="">Select sub-category</option>
-                {(selectedCategory?.subcategories || []).map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-
-            <div className="field">
-              <label>Author / Reporter *</label>
-              <select className={`select ${errors.author ? 'error' : ''}`} value={form.author} onChange={(e) => setField('author', e.target.value)}>
-                <option value="">Select reporter</option>
-                {reporters.map((r) => <option key={r.id} value={r.name}>{r.name}</option>)}
-              </select>
-              {errors.author && <div className="field-error">{errors.author}</div>}
-            </div>
-
-            <div className="field">
-              <label>Location</label>
-              <input className="input" value={form.location} onChange={(e) => setField('location', e.target.value)} placeholder="e.g. Chennai" />
-            </div>
-
-            <div className="form-grid cols-1" style={{ gap: 14 }}>
-              <div className="field">
-                <label><Calendar style={{ width: 13, height: 13, marginRight: 4, verticalAlign: -2 }} />Publish Date</label>
-                <input type="date" className="input" value={form.publishDate} onChange={(e) => setField('publishDate', e.target.value)} />
-              </div>
-              <div className="field">
-                <label>Publish Time</label>
-                <input type="time" className="input" value={form.publishTime} onChange={(e) => setField('publishTime', e.target.value)} />
-              </div>
-            </div>
-
-            <div className="flex-between" style={{ background: 'var(--surface-2)', padding: '10px 12px', borderRadius: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600 }}>
-                <Zap style={{ width: 15, height: 15, color: 'var(--red-500)' }} /> Mark as Breaking News
-              </div>
-              <label className="switch">
-                <input type="checkbox" checked={form.isBreaking} onChange={(e) => setField('isBreaking', e.target.checked)} />
-                <span className="slider" />
-              </label>
-            </div>
-          </div>
-
-          <div className="card card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <button className="btn btn-secondary btn-block" onClick={() => persist('draft')}><Save />Save as Draft</button>
-            <button className="btn btn-secondary btn-block" onClick={() => persist('scheduled')}><Calendar />Schedule</button>
-            <button className="btn btn-primary btn-block" onClick={() => persist('published')}><Send />Publish Now</button>
-          </div>
+        <div className="field"><label>Tags</label><div className="tag-input-wrap">{form.tags.map((tag) => <span className="tag-chip" key={tag}>{tag}<button type="button" onClick={() => setField('tags', form.tags.filter((item) => item !== tag))}><X /></button></span>)}<input value={tagInput} onChange={(e) => setTagInput(e.target.value)} onKeyDown={addTag} placeholder="Type a tag and press Enter" /></div></div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="card card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}><h3>Publishing</h3>
+          <div className="field"><label>Category *</label><select className={`select ${errors.categoryId ? 'error' : ''}`} value={form.categoryId} onChange={(e) => setForm((current) => ({ ...current, categoryId: e.target.value, subCategoryId: '' }))}><option value="">Select category</option>{references.categories.map((item) => <option key={item.id} value={item.id}>{item.name || item.label}</option>)}</select>{errors.categoryId && <div className="field-error">{errors.categoryId}</div>}</div>
+          <div className="field"><label>Sub Category</label><select className="select" value={form.subCategoryId} onChange={(e) => setField('subCategoryId', e.target.value)}><option value="">None</option>{visibleSubcategories.map((item) => <option key={item.id} value={item.id}>{item.name || item.label}</option>)}</select></div>
+          <div className="field"><label>Author / Reporter *</label><select className={`select ${errors.authorId ? 'error' : ''}`} value={form.authorId} onChange={(e) => setField('authorId', e.target.value)}><option value="">Select reporter</option>{references.reporters.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>{errors.authorId && <div className="field-error">{errors.authorId}</div>}</div>
+          <div className="field"><label>Area</label><select className="select" value={form.areaId} onChange={(e) => setField('areaId', e.target.value)}><option value="">None</option>{references.areas.map((item) => <option key={item.id} value={item.id}>{item.name || item.label}</option>)}</select></div>
+          {input('location', 'Location')}
+          <div className="field"><label><Calendar /> Publish Date</label><input type="date" className="input" value={form.publishDate || ''} onChange={(e) => setField('publishDate', e.target.value)} /></div>
+          <div className="field"><label>Publish Time</label><input type="time" className="input" value={form.publishTime || ''} onChange={(e) => setField('publishTime', e.target.value)} /></div>
+          {[['isBreaking', 'Mark as Breaking News'], ['isFeatured', 'Mark as Featured']].map(([key, label]) => <div className="flex-between" key={key}><span><Zap /> {label}</span><label className="switch"><input type="checkbox" checked={form[key]} onChange={(e) => setField(key, e.target.checked)} /><span className="slider" /></label></div>)}
+        </div>
+        <div className="card card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <button className="btn btn-secondary btn-block" disabled={submitting} onClick={() => persist('draft')}><Save />Save Changes</button>
+          {hasPermission('news.edit') && form.status === 'draft' && <button className="btn btn-secondary btn-block" disabled={submitting} onClick={() => persist('pending')}><Send />Submit for Review</button>}
+          {hasPermission('news.publish') && (!isEdit || form.status === 'scheduled') && <button className="btn btn-secondary btn-block" disabled={submitting} onClick={() => persist('scheduled')}><Calendar />{form.status === 'scheduled' ? 'Update Schedule' : 'Schedule'}</button>}
+          {hasPermission('news.publish') && form.status !== 'published' && <button className="btn btn-primary btn-block" disabled={submitting} onClick={() => persist('published')}><Send />Publish Now</button>}
         </div>
       </div>
     </div>
-  );
+  </div>;
 }
