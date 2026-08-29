@@ -26,4 +26,11 @@ describe('responsive layout contracts', () => {
 
     assert.match(css, /\.app-shell:not\(\.mobile-open\) \.sidebar\s*\{[^}]*display: none/);
   });
+
+  it('keeps the add/edit two-column form inside the mobile viewport', () => {
+    const css = readFileSync(join(root, 'src/styles/index.css'), 'utf8');
+
+    assert.match(css, /\.two-col\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\)/);
+    assert.match(css, /\.two-col > \*\s*\{[^}]*min-width: 0/);
+  });
 });

@@ -749,10 +749,12 @@ table.data-table tbody tr:last-child td { border-bottom: none; }
   .role-grid { grid-template-columns: 1fr; }
 
   /* Two-col form */
-  .two-col { grid-template-columns: 1fr; gap: 14px; }
+  .two-col { grid-template-columns: minmax(0, 1fr); gap: 14px; width: 100%; }
+  .two-col > * { min-width: 0; max-width: 100%; }
 
   /* Form grid */
   .form-grid { grid-template-columns: 1fr; gap: 12px; }
+  .card, .input, .select, textarea { min-width: 0; max-width: 100%; }
 
   /* Toasts */
   .toast-stack { width: calc(100vw - 24px); left: 12px; right: 12px; top: 12px; }
