@@ -38,6 +38,7 @@ export const SECTIONS = [
     items: [
       { to: '/categories', label: 'Categories', icon: Tag, permission: 'categories.view' },
       { to: '/subcategories', label: 'Sub Categories', icon: Tag, permission: 'categories.view' },
+      { to: '/areas', label: 'Areas', icon: MapPinned, permission: 'categories.view' },
     ],
   },
   {
