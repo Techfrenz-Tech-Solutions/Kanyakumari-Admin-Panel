@@ -1,4 +1,6 @@
-const DEFAULT_API_BASE_URL = 'http://localhost:3000';
+// Same-origin by default so production builds proxy /api through their Nginx
+// virtual host instead of embedding a development address.
+const DEFAULT_API_BASE_URL = '';
 const DEFAULT_TIMEOUT_MS = 15_000;
 
 function configuredApiBaseUrl() {

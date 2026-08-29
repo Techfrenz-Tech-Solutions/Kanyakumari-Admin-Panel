@@ -16,6 +16,18 @@ const failure = (status, code, message) => jsonResponse(status, {
   error: { code, message },
 });
 
+test('defaults to same-origin API paths when no build-time host is configured', async () => {
+  let capturedUrl;
+  const client = createApiClient({
+    fetchImpl: async (url) => {
+      capturedUrl = url;
+      return success({ ok: true });
+    },
+  });
+  await client.request('/api/health');
+  assert.equal(capturedUrl, '/api/health');
+});
+
 test('sends JSON, credentials, and the in-memory bearer token', async () => {
   let captured;
   const client = createApiClient({
