@@ -20,4 +20,10 @@ describe('responsive layout contracts', () => {
     assert.doesNotMatch(toastAnimation, /translateX/);
     assert.match(toastAnimation, /translateY/);
   });
+
+  it('removes the closed mobile sidebar from layout flow', () => {
+    const css = readFileSync(join(root, 'src/styles/index.css'), 'utf8');
+
+    assert.match(css, /\.app-shell:not\(\.mobile-open\) \.sidebar\s*\{[^}]*display: none/);
+  });
 });

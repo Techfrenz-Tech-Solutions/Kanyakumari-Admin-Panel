@@ -646,6 +646,8 @@ table.data-table tbody tr:last-child td { border-bottom: none; }
    ============================================================ */
 @media (max-width: 1024px) {
   .sidebar { transform: translateX(-100%); width: 258px !important; }
+  .app-shell:not(.mobile-open) .sidebar { display: none; transform: none; }
+  .app-shell.mobile-open .sidebar { display: flex; }
   .app-shell.mobile-open .sidebar { transform: translateX(0); }
   .main-col, .app-shell.collapsed .main-col { margin-left: 0; }
   .mobile-only { display: flex; }
@@ -878,6 +880,8 @@ table.data-table tbody tr:last-child td { border-bottom: none; }
   .desktop-only { display: none !important; }
   .mobile-only { display: flex !important; }
   .sidebar { transform: translateX(-100%); width: 258px !important; z-index: 50; }
+  .app-shell:not(.mobile-open) .sidebar { display: none; transform: none; }
+  .app-shell.mobile-open .sidebar { display: flex; }
   .app-shell.mobile-open .sidebar { transform: translateX(0); }
   .main-col, .app-shell.collapsed .main-col { margin-left: 0; }
   .form-grid { grid-template-columns: 1fr; }
