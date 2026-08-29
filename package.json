@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint src test",
+    "test:browser": "node scripts/step3-browser.mjs",
     "preview": "vite preview",
     "test": "node --test"
   },
@@ -20,6 +21,7 @@
     "@vitejs/plugin-react": "^4.3.1",
     "eslint": "10.9.1",
     "globals": "17.11.0",
+    "playwright-core": "^1.49.1",
     "vite": "^5.4.6"
   }
 }
