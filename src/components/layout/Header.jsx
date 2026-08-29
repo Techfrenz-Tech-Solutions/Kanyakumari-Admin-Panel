@@ -44,7 +44,7 @@ const BREADCRUMB_MAP = {
 
 export default function Header({ onMenuClick }) {
   const { theme, toggleTheme } = useTheme();
-  const { user, logout } = useAuth();
+  const { user, logout, hasPermission } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [notifOpen, setNotifOpen] = useState(false);
@@ -62,7 +62,8 @@ export default function Header({ onMenuClick }) {
     return () => document.removeEventListener('mousedown', onClick);
   }, []);
 
-  const initials = (user?.name || 'Admin User').split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase();
+  const initials = (user?.name || 'Admin').split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase();
+  const roleLabel = user?.roleLabel || user?.role || '';
   const currentPage = BREADCRUMB_MAP[location.pathname] || 'Admin';
   const isEditPage = location.pathname.startsWith('/news/edit/');
 
@@ -124,9 +125,11 @@ export default function Header({ onMenuClick }) {
 
       <div className="topbar-right">
         {/* Quick Add */}
-        <button className="btn btn-primary btn-sm desktop-only" onClick={() => navigate('/news/add')} style={{ gap: 5 }}>
-          <Plus style={{ width: 14, height: 14 }} /> Quick Add
-        </button>
+        {hasPermission('news.create') && (
+          <button className="btn btn-primary btn-sm desktop-only" onClick={() => navigate('/news/add')} style={{ gap: 5 }}>
+            <Plus style={{ width: 14, height: 14 }} /> Quick Add
+          </button>
+        )}
 
         {/* Preview site */}
         <span className="icon-btn desktop-only" title="Preview website" onClick={() => window.open('/', '_blank')}>
@@ -139,7 +142,7 @@ export default function Header({ onMenuClick }) {
         </span>
 
         {/* Notifications */}
-        <div className="icon-btn-wrap" ref={notifRef}>
+        {hasPermission('settings.view') && <div className="icon-btn-wrap" ref={notifRef}>
           <span className="icon-btn" style={{ position: 'relative' }} onClick={() => { setNotifOpen((v) => !v); setProfileOpen(false); }} aria-label="Notifications">
             <Bell style={{ width: 16, height: 16 }} />
             <span className="badge-dot" />
@@ -171,15 +174,15 @@ export default function Header({ onMenuClick }) {
               </div>
             </div>
           )}
-        </div>
+        </div>}
 
         {/* Profile */}
         <div className="icon-btn-wrap" ref={profileRef}>
           <div className="profile-btn" onClick={() => { setProfileOpen((v) => !v); setNotifOpen(false); }} aria-label="Profile menu">
             <div className="avatar">{initials}</div>
             <div className="desktop-only">
-              <div className="name">{user?.name || 'Admin User'}</div>
-              <div className="role">{user?.role || 'Super Admin'}</div>
+              <div className="name">{user?.name}</div>
+              <div className="role">{roleLabel}</div>
             </div>
             <ChevronDown style={{ width: 14, height: 14 }} className="desktop-only" />
           </div>
@@ -189,16 +192,18 @@ export default function Header({ onMenuClick }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
                   <div className="avatar" style={{ width: 36, height: 36, fontSize: 14 }}>{initials}</div>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: 13.5 }}>{user?.name || 'Admin User'}</div>
+                    <div style={{ fontWeight: 700, fontSize: 13.5 }}>{user?.name}</div>
                     <div className="faint" style={{ fontSize: 11.5 }}>{user?.email}</div>
                   </div>
                 </div>
-                <span className="pill pill-active" style={{ fontSize: 10.5 }}>{user?.role || 'Super Admin'}</span>
+                <span className="pill pill-active" style={{ fontSize: 10.5 }}>{roleLabel}</span>
               </div>
               <div className="dd-item" onClick={() => { setProfileOpen(false); navigate('/profile'); }}><User style={{ width: 15, height: 15 }} /> My Profile</div>
-              <div className="dd-item" onClick={() => { setProfileOpen(false); navigate('/settings'); }}><Settings style={{ width: 15, height: 15 }} /> Account Settings</div>
+              {hasPermission('settings.view') && (
+                <div className="dd-item" onClick={() => { setProfileOpen(false); navigate('/settings'); }}><Settings style={{ width: 15, height: 15 }} /> Website Settings</div>
+              )}
               <div className="dd-sep" />
-              <div className="dd-item danger" onClick={() => { setProfileOpen(false); logout(); navigate('/login'); }}><LogOut style={{ width: 15, height: 15 }} /> Logout</div>
+              <div className="dd-item danger" onClick={async () => { setProfileOpen(false); await logout(); navigate('/login', { replace: true }); }}><LogOut style={{ width: 15, height: 15 }} /> Logout</div>
             </div>
           )}
         </div>

@@ -1,0 +1,23 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+
+const root = process.cwd();
+
+describe('responsive layout contracts', () => {
+  it('keeps dashboard date filters on the mobile chip scroller', () => {
+    const dashboard = readFileSync(join(root, 'src/pages/Dashboard.jsx'), 'utf8');
+
+    assert.match(dashboard, /className="chip-row"/);
+    assert.match(dashboard, /Analytics period:/);
+  });
+
+  it('keeps toast entrance animation from increasing mobile page width', () => {
+    const css = readFileSync(join(root, 'src/styles/index.css'), 'utf8');
+    const toastAnimation = css.match(/@keyframes toast-in\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
+
+    assert.doesNotMatch(toastAnimation, /translateX/);
+    assert.match(toastAnimation, /translateY/);
+  });
+});

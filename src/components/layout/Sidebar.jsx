@@ -9,12 +9,13 @@ import {
 } from '../ui/Icons.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import logoImg from '../../Image/WhatsApp_Image_2026-08-24_at_2.52.11_PM-removebg-preview.png';
+import { filterNavigation } from '../../auth/permissions.js';
 
-const SECTIONS = [
+export const SECTIONS = [
   {
     label: 'Main',
     items: [
-      { to: '/', label: 'Dashboard', icon: Grid, end: true },
+      { to: '/', label: 'Dashboard', icon: Grid, end: true, permission: 'news.view' },
     ],
   },
   {
@@ -22,13 +23,13 @@ const SECTIONS = [
     key: 'news',
     defaultOpen: true,
     items: [
-      { to: '/news', label: 'All News', icon: List },
-      { to: '/news/add', label: 'Add News', icon: PenSquare },
-      { to: '/news/drafts', label: 'Drafts', icon: FileText },
-      { to: '/news/published', label: 'Published', icon: CheckCircle },
-      { to: '/news/scheduled', label: 'Scheduled', icon: Clock },
-      { to: '/news/breaking', label: 'Breaking News', icon: Zap, badge: 'live', badgeColor: 'red' },
-      { to: '/news/pending', label: 'Pending Approval', icon: ClipboardList, badgeKey: 'pending' },
+      { to: '/news', label: 'All News', icon: List, permission: 'news.view' },
+      { to: '/news/add', label: 'Add News', icon: PenSquare, permission: 'news.create' },
+      { to: '/news/drafts', label: 'Drafts', icon: FileText, permission: 'news.view' },
+      { to: '/news/published', label: 'Published', icon: CheckCircle, permission: 'news.view' },
+      { to: '/news/scheduled', label: 'Scheduled', icon: Clock, permission: 'news.view' },
+      { to: '/news/breaking', label: 'Breaking News', icon: Zap, badge: 'live', badgeColor: 'red', permission: 'news.view' },
+      { to: '/news/pending', label: 'Pending Approval', icon: ClipboardList, badgeKey: 'pending', permission: 'news.view' },
     ],
   },
   {
@@ -36,8 +37,9 @@ const SECTIONS = [
     key: 'categories',
     defaultOpen: false,
     items: [
-      { to: '/categories', label: 'Categories', icon: Tag },
-      { to: '/subcategories', label: 'Sub Categories', icon: Tag },
+      { to: '/categories', label: 'Categories', icon: Tag, permission: 'categories.view' },
+      { to: '/subcategories', label: 'Sub Categories', icon: Tag, permission: 'categories.view' },
+      { to: '/areas', label: 'Areas', icon: MapPinned, permission: 'categories.view' },
     ],
   },
   {
@@ -45,9 +47,9 @@ const SECTIONS = [
     key: 'team',
     defaultOpen: false,
     items: [
-      { to: '/reporters', label: 'Reporters', icon: Users },
-      { to: '/authors', label: 'Authors', icon: PenSquare },
-      { to: '/editors', label: 'Editors', icon: CheckCircle },
+      { to: '/reporters', label: 'Reporters', icon: Users, permission: 'reporters.view' },
+      { to: '/authors', label: 'Authors', icon: PenSquare, permission: 'reporters.view' },
+      { to: '/editors', label: 'Editors', icon: CheckCircle, permission: 'reporters.view' },
     ],
   },
   {
@@ -55,9 +57,9 @@ const SECTIONS = [
     key: 'media',
     defaultOpen: false,
     items: [
-      { to: '/media', label: 'Media Library', icon: Image },
-      { to: '/videos', label: 'Video Library', icon: Video },
-      { to: '/gallery', label: 'Photo Gallery', icon: Gallery },
+      { to: '/media', label: 'Media Library', icon: Image, permission: 'media.view' },
+      { to: '/videos', label: 'Video Library', icon: Video, permission: 'media.view' },
+      { to: '/gallery', label: 'Photo Gallery', icon: Gallery, permission: 'media.view' },
     ],
   },
   {
@@ -65,8 +67,8 @@ const SECTIONS = [
     key: 'live',
     defaultOpen: false,
     items: [
-      { to: '/live-updates', label: 'Live Updates', icon: Radio },
-      { to: '/district-news', label: 'District News', icon: MapPinned },
+      { to: '/live-updates', label: 'Live Updates', icon: Radio, permission: 'news.view' },
+      { to: '/district-news', label: 'District News', icon: MapPinned, permission: 'news.view' },
     ],
   },
   /*
@@ -88,10 +90,10 @@ const SECTIONS = [
     key: 'manage',
     defaultOpen: false,
     items: [
-      { to: '/advertisements', label: 'Advertisements', icon: Megaphone },
-      { to: '/comments', label: 'Comments', icon: MessageSquare },
-      { to: '/notifications', label: 'Notifications', icon: Bell },
-      { to: '/users-roles', label: 'Users & Roles', icon: ShieldCheck },
+      { to: '/advertisements', label: 'Advertisements', icon: Megaphone, permission: 'ads.view' },
+      { to: '/comments', label: 'Comments', icon: MessageSquare, permission: 'comments.view' },
+      { to: '/notifications', label: 'Notifications', icon: Bell, permission: 'settings.view' },
+      { to: '/users-roles', label: 'Users & Roles', icon: ShieldCheck, permission: 'users.view' },
     ],
   },
   {
@@ -99,17 +101,17 @@ const SECTIONS = [
     key: 'config',
     defaultOpen: false,
     items: [
-      { to: '/seo', label: 'SEO Management', icon: Globe },
-      { to: '/analytics', label: 'Analytics', icon: BarChart2 },
-      { to: '/social-media', label: 'Social Media', icon: Globe },
-      { to: '/activity-logs', label: 'Activity Logs', icon: Activity },
-      { to: '/settings', label: 'Settings', icon: Settings },
+      { to: '/seo', label: 'SEO Management', icon: Globe, permission: 'news.view' },
+      { to: '/analytics', label: 'Analytics', icon: BarChart2, permission: 'news.view' },
+      { to: '/social-media', label: 'Social Media', icon: Globe, permission: 'settings.view' },
+      { to: '/activity-logs', label: 'Activity Logs', icon: Activity, permission: 'settings.view' },
+      { to: '/settings', label: 'Settings', icon: Settings, permission: 'settings.view' },
     ],
   },
 ];
 
 export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onCloseMobile }) {
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
   const location = useLocation();
   const [openSections, setOpenSections] = useState(() => {
     const init = {};
@@ -127,6 +129,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onClo
     if (collapsed) return;
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
   };
+  const visibleSections = filterNavigation(SECTIONS, user);
 
   return (
     <>
@@ -139,7 +142,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onClo
 
         {/* Nav */}
         <nav className="sidebar-nav">
-          {SECTIONS.map((section) => (
+          {visibleSections.map((section) => (
             <div key={section.label}>
               {section.key ? (
                 <>
@@ -170,7 +173,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onClo
           ))}
         </nav>
 
-        {/* Footer */}  ///////
+        {/* Footer */}
         <div className="sidebar-foot">
           <div className="nav-item" onClick={logout}>
             <LogOut />

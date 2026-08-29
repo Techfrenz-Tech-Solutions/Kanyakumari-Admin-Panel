@@ -107,7 +107,7 @@ export default function Dashboard() {
       </div>
 
       {/* Date filter */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+      <div className="chip-row" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
         <span style={{ fontSize: 12.5, color: 'var(--text-faint)', fontWeight: 600 }}>Analytics period:</span>
         {DATE_FILTERS.map((f) => (
           <button
