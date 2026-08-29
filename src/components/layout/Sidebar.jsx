@@ -8,6 +8,7 @@ import {
   FlameIcon, Building, ClipboardList,
 } from '../ui/Icons.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
+import logoImg from '../../Image/WhatsApp_Image_2026-08-24_at_2.52.11_PM-removebg-preview.png';
 
 const SECTIONS = [
   {
@@ -133,11 +134,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onClo
       <aside className="sidebar">
         {/* Brand */}
         <div className="sidebar-brand">
-          <div className="mark">KN</div>
-          <div>
-            <div className="word">Kanyakumari News</div>
-            <div className="sub">Admin Panel</div>
-          </div>
+          <img src={logoImg} alt="Kanyakumari Today" className="brand-logo" />
         </div>
 
         {/* Nav */}
@@ -173,7 +170,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onClo
           ))}
         </nav>
 
-        {/* Footer */}
+        {/* Footer */}  ///////
         <div className="sidebar-foot">
           <div className="nav-item" onClick={logout}>
             <LogOut />
