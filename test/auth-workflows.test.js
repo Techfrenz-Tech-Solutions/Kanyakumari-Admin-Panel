@@ -4,10 +4,18 @@ import test from 'node:test';
 import { createAuthApi } from '../src/api/auth.js';
 import {
   authenticationDecision,
+  claimSessionBootstrap,
   changePasswordAndEndSession,
   permissionDecision,
   restoreSession,
 } from '../src/auth/session.js';
+
+test('session bootstrap gate allows exactly one effect pass under React StrictMode', () => {
+  const gate = { current: false };
+  assert.equal(claimSessionBootstrap(gate), true);
+  assert.equal(claimSessionBootstrap(gate), false);
+  assert.equal(claimSessionBootstrap(gate), false);
+});
 
 function recordingClient() {
   const calls = [];
