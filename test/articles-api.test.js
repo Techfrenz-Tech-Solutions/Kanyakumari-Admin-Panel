@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import {
   buildArticleQuery,
@@ -7,6 +9,21 @@ import {
   mapArticle,
   mapArticlePayload,
 } from '../src/api/articles.js';
+
+test('dedicated article status routes render the server-backed NewsList', () => {
+  const root = process.cwd();
+  for (const [file, status] of [
+    ['DraftsList.jsx', 'draft'],
+    ['PublishedList.jsx', 'published'],
+    ['ScheduledList.jsx', 'scheduled'],
+    ['PendingApproval.jsx', 'pending'],
+    ['BreakingNews.jsx', 'breaking'],
+  ]) {
+    const source = readFileSync(join(root, 'src/pages', file), 'utf8');
+    assert.match(source, new RegExp(`fixedStatus=["']${status}["']`), `${file} must use status-filtered NewsList`);
+    assert.doesNotMatch(source, /loadData|saveData|mockData/, `${file} must not use browser-local mock articles`);
+  }
+});
 
 test('buildArticleQuery maps supported list filters and omits empty values', () => {
   const query = buildArticleQuery({
