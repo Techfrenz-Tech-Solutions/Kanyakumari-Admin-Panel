@@ -33,4 +33,12 @@ describe('responsive layout contracts', () => {
     assert.match(css, /\.two-col\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\)/);
     assert.match(css, /\.two-col > \*\s*\{[^}]*min-width: 0/);
   });
+
+  it('renders a desktop sidebar collapse control wired to the layout callback', () => {
+    const sidebar = readFileSync(join(root, 'src/components/layout/Sidebar.jsx'), 'utf8');
+
+    assert.match(sidebar, /className="collapse-btn desktop-only"/);
+    assert.match(sidebar, /onClick=\{onToggleCollapse\}/);
+    assert.match(sidebar, /aria-label=\{collapsed \? 'Expand sidebar' : 'Collapse sidebar'\}/);
+  });
 });

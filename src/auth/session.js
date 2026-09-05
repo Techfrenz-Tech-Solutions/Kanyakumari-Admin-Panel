@@ -4,6 +4,14 @@ export async function restoreSession(authApi) {
   return { accessToken: refreshed.accessToken, user: current.user };
 }
 
+// React StrictMode replays mount effects. Claiming the effect once prevents
+// duplicate rotating refresh calls from consuming the refresh rate limit.
+export function claimSessionBootstrap(gate) {
+  if (gate.current) return false;
+  gate.current = true;
+  return true;
+}
+
 export function authenticationDecision({ isInitializing, isAuthenticated }) {
   if (isInitializing) return 'initializing';
   return isAuthenticated ? 'allow' : 'login';

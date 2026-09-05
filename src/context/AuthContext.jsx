@@ -1,7 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { apiClient } from '../api/client.js';
 import { authApi } from '../api/auth.js';
-import { changePasswordAndEndSession, restoreSession } from '../auth/session.js';
+import { changePasswordAndEndSession, claimSessionBootstrap, restoreSession } from '../auth/session.js';
 import {
   hasPermission as userHasPermission,
   hasAnyPermission as userHasAnyPermission,
@@ -14,6 +14,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [accessToken, setAccessTokenState] = useState(null);
   const [authState, setAuthState] = useState('initializing');
+  const sessionBootstrapGate = useRef(false);
 
   const clearLocalSession = useCallback(() => {
     apiClient.clearSession();
@@ -37,6 +38,7 @@ export function AuthProvider({ children }) {
   }, [applySession]);
 
   useEffect(() => {
+    if (!claimSessionBootstrap(sessionBootstrapGate)) return undefined;
     localStorage.removeItem('dw_session');
     const removeHandlers = apiClient.setSessionHandlers({
       onSessionRefreshed: applySession,

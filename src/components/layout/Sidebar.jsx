@@ -180,6 +180,15 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onClo
             <span className="label">Logout</span>
           </div>
 
+          <button
+            type="button"
+            className="collapse-btn desktop-only"
+            onClick={onToggleCollapse}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
+          </button>
         </div>
       </aside>
     </>
