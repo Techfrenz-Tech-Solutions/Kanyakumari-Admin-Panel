@@ -25,11 +25,12 @@ export const SECTIONS = [
     items: [
       { to: '/news', label: 'All News', icon: List, permission: 'news.view' },
       { to: '/news/add', label: 'Add News', icon: PenSquare, permission: 'news.create' },
-      { to: '/news/drafts', label: 'Drafts', icon: FileText, permission: 'news.view' },
+      // { to: '/news/drafts', label: 'Drafts', icon: FileText, permission: 'news.view' },
       { to: '/news/published', label: 'Published', icon: CheckCircle, permission: 'news.view' },
       { to: '/news/scheduled', label: 'Scheduled', icon: Clock, permission: 'news.view' },
       { to: '/news/breaking', label: 'Breaking News', icon: Zap, badge: 'live', badgeColor: 'red', permission: 'news.view' },
       { to: '/news/pending', label: 'Pending Approval', icon: ClipboardList, badgeKey: 'pending', permission: 'news.view' },
+      // { to: '/comments', label: 'Comments', icon: MessageSquare, permission: 'comments.view' },
     ],
   },
   {
@@ -38,8 +39,8 @@ export const SECTIONS = [
     defaultOpen: false,
     items: [
       { to: '/categories', label: 'Categories', icon: Tag, permission: 'categories.view' },
-      { to: '/subcategories', label: 'Sub Categories', icon: Tag, permission: 'categories.view' },
-      { to: '/areas', label: 'Areas', icon: MapPinned, permission: 'categories.view' },
+      // { to: '/subcategories', label: 'Sub Categories', icon: Tag, permission: 'categories.view' },
+      { to: '/areas', label: 'Sub Categories', icon: MapPinned, permission: 'categories.view' },
     ],
   },
   {
@@ -59,18 +60,18 @@ export const SECTIONS = [
     items: [
       { to: '/media', label: 'Media Library', icon: Image, permission: 'media.view' },
       { to: '/videos', label: 'Video Library', icon: Video, permission: 'media.view' },
-      { to: '/gallery', label: 'Photo Gallery', icon: Gallery, permission: 'media.view' },
+      // { to: '/gallery', label: 'Photo Gallery', icon: Gallery, permission: 'media.view' },
     ],
   },
-  {
-    label: 'Live & Local',
-    key: 'live',
-    defaultOpen: false,
-    items: [
-      { to: '/live-updates', label: 'Live Updates', icon: Radio, permission: 'news.view' },
-      { to: '/district-news', label: 'District News', icon: MapPinned, permission: 'news.view' },
-    ],
-  },
+  // {
+  //   label: 'Live & Local',
+  //   key: 'live',
+  //   defaultOpen: false,
+  //   items: [
+  //     { to: '/live-updates', label: 'Live Updates', icon: Radio, permission: 'news.view' },
+  //     { to: '/district-news', label: 'District News', icon: MapPinned, permission: 'news.view' },
+  //   ],
+  // },
   /*
   {
     label: 'Sections',
@@ -91,8 +92,7 @@ export const SECTIONS = [
     defaultOpen: false,
     items: [
       { to: '/advertisements', label: 'Advertisements', icon: Megaphone, permission: 'ads.view' },
-      { to: '/comments', label: 'Comments', icon: MessageSquare, permission: 'comments.view' },
-      { to: '/notifications', label: 'Notifications', icon: Bell, permission: 'settings.view' },
+      // { to: '/notifications', label: 'Notifications', icon: Bell, permission: 'settings.view' },
       { to: '/users-roles', label: 'Users & Roles', icon: ShieldCheck, permission: 'users.view' },
     ],
   },
@@ -101,10 +101,10 @@ export const SECTIONS = [
     key: 'config',
     defaultOpen: false,
     items: [
-      { to: '/seo', label: 'SEO Management', icon: Globe, permission: 'news.view' },
-      { to: '/analytics', label: 'Analytics', icon: BarChart2, permission: 'news.view' },
-      { to: '/social-media', label: 'Social Media', icon: Globe, permission: 'settings.view' },
-      { to: '/activity-logs', label: 'Activity Logs', icon: Activity, permission: 'settings.view' },
+      // { to: '/seo', label: 'SEO Management', icon: Globe, permission: 'news.view' },
+      // { to: '/analytics', label: 'Analytics', icon: BarChart2, permission: 'news.view' },
+      // { to: '/social-media', label: 'Social Media', icon: Globe, permission: 'settings.view' },
+      // { to: '/activity-logs', label: 'Activity Logs', icon: Activity, permission: 'settings.view' },
       { to: '/settings', label: 'Settings', icon: Settings, permission: 'settings.view' },
     ],
   },
@@ -180,7 +180,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onClo
             <span className="label">Logout</span>
           </div>
 
-          <button
+          {/* <button
             type="button"
             className="collapse-btn desktop-only"
             onClick={onToggleCollapse}
@@ -188,7 +188,7 @@ export default function Sidebar({ collapsed, onToggleCollapse, mobileOpen, onClo
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
-          </button>
+          </button> */}
         </div>
       </aside>
     </>

@@ -2,12 +2,15 @@ import { useMemo, useState } from 'react';
 import { PageHead } from '../components/ui/PageHead.jsx';
 import { StatusPill, EmptyState } from '../components/ui/Badges.jsx';
 import ConfirmModal from '../components/ui/ConfirmModal.jsx';
-import { MessageSquare, CheckCircle, XCircle, Trash2, Search } from '../components/ui/Icons.jsx';
+import Modal from '../components/ui/Modal.jsx';
+import { MessageSquare, CheckCircle, XCircle, Trash2, Search, Plus } from '../components/ui/Icons.jsx';
 import { loadData, saveData } from '../utils/storage.js';
 import { seedComments } from '../data/mockData.js';
 import { useToast } from '../context/ToastContext.jsx';
 
 const TABS = ['all', 'pending', 'approved', 'rejected', 'spam'];
+
+const EMPTY_FORM = { name: '', email: '', article: '', comment: '', status: 'pending' };
 
 export default function Comments() {
   const toast = useToast();
@@ -15,6 +18,9 @@ export default function Comments() {
   const [tab, setTab] = useState('all');
   const [query, setQuery] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [formErrors, setFormErrors] = useState({});
 
   const persist = (list) => { setComments(list); saveData('comments', list); };
 
@@ -27,6 +33,35 @@ export default function Comments() {
     persist(comments.filter((c) => c.id !== deleteTarget.id));
     toast.success('Comment deleted', 'The comment was removed.');
     setDeleteTarget(null);
+  };
+
+  const openAdd = () => { setForm(EMPTY_FORM); setFormErrors({}); setAddOpen(true); };
+
+  const validateForm = () => {
+    const errors = {};
+    if (!form.name.trim()) errors.name = 'Name is required.';
+    if (!form.email.trim()) errors.email = 'Email is required.';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errors.email = 'Enter a valid email.';
+    if (!form.article.trim()) errors.article = 'Article title is required.';
+    if (!form.comment.trim()) errors.comment = 'Comment text is required.';
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleAddSubmit = () => {
+    if (!validateForm()) return;
+    const newComment = {
+      id: Date.now(),
+      name: form.name.trim(),
+      email: form.email.trim(),
+      article: form.article.trim(),
+      comment: form.comment.trim(),
+      status: form.status,
+      date: new Date().toISOString().slice(0, 10),
+    };
+    persist([newComment, ...comments]);
+    toast.success('Comment added', 'The comment was added successfully.');
+    setAddOpen(false);
   };
 
   const filtered = useMemo(() => {
@@ -49,7 +84,16 @@ export default function Comments() {
 
   return (
     <div>
-      <PageHead eyebrow="Engagement" title="Comments" desc="Moderate reader comments across all articles." />
+      <PageHead
+        eyebrow="Engagement"
+        title="Comments"
+        desc="Moderate reader comments across all articles."
+        actions={
+          <button className="btn btn-primary" onClick={openAdd}>
+            <Plus style={{ width: 15, height: 15 }} /> Add Comment
+          </button>
+        }
+      />
 
       <div className="chip-row" style={{ marginBottom: 16 }}>
         {TABS.map((t) => (
@@ -103,6 +147,87 @@ export default function Comments() {
         title="Delete this comment?"
         message="This comment will be permanently removed from the article."
       />
+
+      {/* Add Comment Modal */}
+      <Modal
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        title="Add Comment"
+        footer={
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+            <button className="btn btn-secondary" onClick={() => setAddOpen(false)}>Cancel</button>
+            <button className="btn btn-primary" onClick={handleAddSubmit}>Add Comment</button>
+          </div>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Name */}
+          <div className="field">
+            <label>Name <span style={{ color: 'var(--red-500)' }}>*</span></label>
+            <input
+              className={`input ${formErrors.name ? 'error' : ''}`}
+              placeholder="Commenter name"
+              value={form.name}
+              onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+            />
+            {formErrors.name && <div className="field-error">{formErrors.name}</div>}
+          </div>
+
+          {/* Email */}
+          <div className="field">
+            <label>Email <span style={{ color: 'var(--red-500)' }}>*</span></label>
+            <input
+              className={`input ${formErrors.email ? 'error' : ''}`}
+              placeholder="commenter@email.com"
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
+            />
+            {formErrors.email && <div className="field-error">{formErrors.email}</div>}
+          </div>
+
+          {/* Article */}
+          <div className="field">
+            <label>Article Title <span style={{ color: 'var(--red-500)' }}>*</span></label>
+            <input
+              className={`input ${formErrors.article ? 'error' : ''}`}
+              placeholder="Article this comment belongs to"
+              value={form.article}
+              onChange={(e) => setForm((p) => ({ ...p, article: e.target.value }))}
+            />
+            {formErrors.article && <div className="field-error">{formErrors.article}</div>}
+          </div>
+
+          {/* Comment */}
+          <div className="field">
+            <label>Comment <span style={{ color: 'var(--red-500)' }}>*</span></label>
+            <textarea
+              className={`input ${formErrors.comment ? 'error' : ''}`}
+              placeholder="Comment text…"
+              rows={4}
+              value={form.comment}
+              onChange={(e) => setForm((p) => ({ ...p, comment: e.target.value }))}
+              style={{ resize: 'vertical' }}
+            />
+            {formErrors.comment && <div className="field-error">{formErrors.comment}</div>}
+          </div>
+
+          {/* Status */}
+          <div className="field">
+            <label>Status</label>
+            <select
+              className="select"
+              value={form.status}
+              onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}
+            >
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+              <option value="spam">Spam</option>
+            </select>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
