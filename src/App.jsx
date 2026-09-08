@@ -9,22 +9,11 @@ import BreakingNews from './pages/BreakingNews.jsx';
 import Categories from './pages/Categories.jsx';
 import SubCategories from './pages/SubCategories.jsx';
 import Reporters from './pages/Reporters.jsx';
-import Areas from './pages/Areas.jsx';
 import Authors from './pages/Authors.jsx';
 import Editors from './pages/Editors.jsx';
 import MediaLibrary from './pages/MediaLibrary.jsx';
-import VideoLibrary from './pages/VideoLibrary.jsx';
-import PhotoGallery from './pages/PhotoGallery.jsx';
-import LiveUpdates from './pages/LiveUpdates.jsx';
-import DistrictNews from './pages/DistrictNews.jsx';
 import Advertisements from './pages/Advertisements.jsx';
-import Comments from './pages/Comments.jsx';
-import Notifications from './pages/Notifications.jsx';
 import UsersRoles from './pages/UsersRoles.jsx';
-import SEOManagement from './pages/SEOManagement.jsx';
-import Analytics from './pages/Analytics.jsx';
-import SocialMedia from './pages/SocialMedia.jsx';
-import ActivityLogs from './pages/ActivityLogs.jsx';
 import Settings from './pages/Settings.jsx';
 import Profile from './pages/Profile.jsx';
 import SectionPage from './pages/SectionPage.jsx';
@@ -89,7 +78,6 @@ export default function App() {
         <Route path="news" element={protectedPage('news.view', <NewsList />)} />
         <Route path="news/add" element={protectedPage('news.create', <AddEditNews />)} />
         <Route path="news/edit/:id" element={protectedPage('news.edit', <AddEditNews />)} />
-        <Route path="news/drafts" element={protectedPage('news.view', <NewsList fixedStatus="draft" />)} />
         <Route path="news/published" element={protectedPage('news.view', <NewsList fixedStatus="published" />)} />
         <Route path="news/scheduled" element={protectedPage('news.view', <NewsList fixedStatus="scheduled" />)} />
         <Route path="news/pending" element={protectedPage('news.view', <NewsList fixedStatus="pending" />)} />
@@ -97,28 +85,16 @@ export default function App() {
         {/* Categories */}
         <Route path="categories" element={protectedPage('categories.view', <Categories />)} />
         <Route path="subcategories" element={protectedPage('categories.view', <SubCategories />)} />
-        <Route path="areas" element={protectedPage('categories.view', <Areas />)} />
         {/* Team */}
         <Route path="reporters" element={protectedPage('reporters.view', <Reporters />)} />
         <Route path="authors" element={protectedPage('reporters.view', <Authors />)} />
         <Route path="editors" element={protectedPage('reporters.view', <Editors />)} />
         {/* Media */}
         <Route path="media" element={protectedPage('media.view', <MediaLibrary />)} />
-        <Route path="videos" element={protectedPage('media.view', <VideoLibrary />)} />
-        <Route path="gallery" element={protectedPage('media.view', <PhotoGallery />)} />
-        {/* Live & Local */}
-        <Route path="live-updates" element={protectedPage('news.view', <LiveUpdates />)} />
-        <Route path="district-news" element={protectedPage('news.view', <DistrictNews />)} />
         {/* Manage */}
         <Route path="advertisements" element={protectedPage('ads.view', <Advertisements />)} />
-        <Route path="comments" element={protectedPage('comments.view', <Comments />)} />
-        <Route path="notifications" element={protectedPage('settings.view', <Notifications />)} />
         <Route path="users-roles" element={protectedPage('users.view', <UsersRoles />)} />
         {/* Insights & Config */}
-        <Route path="seo" element={protectedPage('news.view', <SEOManagement />)} />
-        <Route path="analytics" element={protectedPage('news.view', <Analytics />)} />
-        <Route path="social-media" element={protectedPage('settings.view', <SocialMedia />)} />
-        <Route path="activity-logs" element={protectedPage('settings.view', <ActivityLogs />)} />
         <Route path="settings" element={protectedPage('settings.view', <Settings />)} />
         <Route path="profile" element={<Profile />} />
         {/* Sections */}

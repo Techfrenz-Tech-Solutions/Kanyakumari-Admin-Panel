@@ -7,11 +7,11 @@ import {
 import { PageHead, StatCard } from '../components/ui/PageHead.jsx';
 import { StatusPill, BreakingTag } from '../components/ui/Badges.jsx';
 import {
-  Newspaper, CheckCircle, FileText, Clock, Zap, Eye, Plus, TrendingUp,
-  Users, MessageSquare, ArrowUpRight, ArrowDownRight,
+  Newspaper, CheckCircle, Clock, Zap, Eye, Plus, TrendingUp,
+  Users, ArrowUpRight, ArrowDownRight,
 } from '../components/ui/Icons.jsx';
 import { loadData } from '../utils/storage.js';
-import { seedNews, seedReporters, seedComments, viewsTrend, categoryDistribution, weeklyPublished, trafficSources, deviceDistribution } from '../data/mockData.js';
+import { seedNews, seedReporters, viewsTrend, categoryDistribution, weeklyPublished, trafficSources, deviceDistribution } from '../data/mockData.js';
 
 const PIE_COLORS = ['#c81e1e', '#2461c9', '#1a8a4a', '#b3760a', '#454b64', '#8f1414', '#6b7182'];
 const DEVICE_COLORS = ['#c81e1e', '#2461c9', '#1a8a4a'];
@@ -23,7 +23,6 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const news = loadData('news', seedNews);
   const reporters = loadData('reporters', seedReporters);
-  const comments = loadData('comments', seedComments);
   const [dateFilter, setDateFilter] = useState('Last 7 Days');
 
   const stats = useMemo(() => {
@@ -38,10 +37,9 @@ export default function Dashboard() {
     const pending = news.filter((n) => n.status === 'pending').length;
     const breaking = news.filter((n) => n.isBreaking).length;
     const totalViews = news.reduce((sum, n) => sum + (n.views || 0), 0);
-    const totalComments = comments.length;
     const totalReporters = reporters.length;
-    return { total, published, publishedToday, draft, pending, breaking, totalViews, totalComments, totalReporters };
-  }, [news, reporters, comments]);
+    return { total, published, publishedToday, draft, pending, breaking, totalViews, totalReporters };
+  }, [news, reporters]);
 
   const recent = useMemo(
     () => [...news].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 7),
@@ -94,16 +92,14 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* 8 Stat Cards */}
+      {/* Stat Cards */}
       <div className="stat-grid">
         <StatCard icon={Newspaper} tone="ink" value={stats.total.toLocaleString('en-IN')} label="Total Articles" delta="+8.2% this month" deltaUp />
         <StatCard icon={CheckCircle} tone="green" value={stats.publishedToday} label="Published Today" delta={`${stats.published} total live`} deltaUp />
-        <StatCard icon={FileText} tone="gray" value={stats.draft} label="Draft Articles" delta="Waiting for review" deltaUp={false} />
         <StatCard icon={Clock} tone="amber" value={stats.pending} label="Pending Approval" delta="Needs editorial action" deltaUp={false} />
         <StatCard icon={Zap} tone="red" value={stats.breaking} label="Breaking News" delta="Live on ticker" deltaUp />
         <StatCard icon={Users} tone="blue" value={stats.totalReporters} label="Total Reporters" delta="Active correspondents" deltaUp />
         <StatCard icon={Eye} tone="green" value={stats.totalViews.toLocaleString('en-IN')} label="Total Views" delta="+12.4% vs last week" deltaUp />
-        <StatCard icon={MessageSquare} tone="amber" value={stats.totalComments} label="Total Comments" delta={`${comments.filter(c => c.status === 'pending').length} pending review`} deltaUp={false} />
       </div>
 
       {/* Date filter */}
@@ -293,7 +289,6 @@ export default function Dashboard() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 {[
                   { label: 'Avg. Views/Article', value: Math.round(news.reduce((s, n) => s + n.views, 0) / (news.length || 1)).toLocaleString('en-IN') },
-                  { label: 'Pending Comments', value: comments.filter(c => c.status === 'pending').length },
                   { label: 'Published Rate', value: `${Math.round((stats.published / (stats.total || 1)) * 100)}%` },
                   { label: 'Active Reporters', value: loadData('reporters', seedReporters).filter(r => r.status === 'active').length },
                 ].map((s) => (

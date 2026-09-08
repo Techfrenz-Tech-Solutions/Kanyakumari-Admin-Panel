@@ -9,7 +9,7 @@ import { useToast } from '../context/ToastContext.jsx';
 const today = () => new Date().toISOString().slice(0, 10);
 const emptyForm = {
   title: '', titleTA: '', shortDescription: '', excerptTA: '', content: '', contentTA: '',
-  categoryId: '', subCategoryId: '', authorId: '', areaId: '', location: '',
+  categoryId: '', subCategoryId: '', authorId: '', location: '',
   featuredImageId: null, image: '', tags: [], publishDate: today(), publishTime: '09:00',
   isBreaking: false, isFeatured: false, status: 'draft',
 };
@@ -23,7 +23,7 @@ export default function AddEditNews() {
   const { hasPermission } = useAuth();
   const fileRef = useRef(null);
   const [form, setForm] = useState(emptyForm);
-  const [references, setReferences] = useState({ categories: [], subcategories: [], reporters: [], areas: [], media: [] });
+  const [references, setReferences] = useState({ categories: [], subcategories: [], reporters: [], media: [] });
   const [tagInput, setTagInput] = useState('');
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(isEdit);
@@ -36,13 +36,13 @@ export default function AddEditNews() {
     setLoading(true); setLoadError('');
     const requests = [
       articlesApi.listCategories({ signal: controller.signal }), articlesApi.listSubcategories({ signal: controller.signal }),
-      articlesApi.listReporters({ signal: controller.signal }), articlesApi.listAreas({ signal: controller.signal }),
+      articlesApi.listReporters({ signal: controller.signal }),
       hasPermission('media.view') ? articlesApi.listMedia({ signal: controller.signal }) : Promise.resolve({ items: [] }),
       isEdit ? articlesApi.get(id, { signal: controller.signal }) : Promise.resolve(null),
     ];
-    Promise.all(requests).then(([categories, subcategories, reporters, areas, media, article]) => {
-      setReferences({ categories: itemsOf(categories), subcategories: itemsOf(subcategories), reporters: itemsOf(reporters), areas: itemsOf(areas), media: itemsOf(media) });
-      if (article) setForm({ ...emptyForm, ...article, categoryId: article.categoryId || '', subCategoryId: article.subCategoryId || '', authorId: article.authorId || '', areaId: article.areaId || '' });
+    Promise.all(requests).then(([categories, subcategories, reporters, media, article]) => {
+      setReferences({ categories: itemsOf(categories), subcategories: itemsOf(subcategories), reporters: itemsOf(reporters), media: itemsOf(media) });
+      if (article) setForm({ ...emptyForm, ...article, categoryId: article.categoryId || '', subCategoryId: article.subCategoryId || '', authorId: article.authorId || '' });
     }).catch((err) => { if (err.code !== 'REQUEST_ABORTED') setLoadError(err.message); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
@@ -135,7 +135,6 @@ export default function AddEditNews() {
           <div className="field"><label>Category *</label><select className={`select ${errors.categoryId ? 'error' : ''}`} value={form.categoryId} onChange={(e) => setForm((current) => ({ ...current, categoryId: e.target.value, subCategoryId: '' }))}><option value="">Select category</option>{references.categories.map((item) => <option key={item.id} value={item.id}>{item.name || item.label}</option>)}</select>{errors.categoryId && <div className="field-error">{errors.categoryId}</div>}</div>
           <div className="field"><label>Sub Category</label><select className="select" value={form.subCategoryId} onChange={(e) => setField('subCategoryId', e.target.value)}><option value="">None</option>{visibleSubcategories.map((item) => <option key={item.id} value={item.id}>{item.name || item.label}</option>)}</select></div>
           <div className="field"><label>Author / Reporter *</label><select className={`select ${errors.authorId ? 'error' : ''}`} value={form.authorId} onChange={(e) => setField('authorId', e.target.value)}><option value="">Select reporter</option>{references.reporters.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>{errors.authorId && <div className="field-error">{errors.authorId}</div>}</div>
-          <div className="field"><label>Area</label><select className="select" value={form.areaId} onChange={(e) => setField('areaId', e.target.value)}><option value="">None</option>{references.areas.map((item) => <option key={item.id} value={item.id}>{item.name || item.label}</option>)}</select></div>
           {input('location', 'Location')}
           <div className="field"><label><Calendar /> Publish Date</label><input type="date" className="input" value={form.publishDate || ''} onChange={(e) => setField('publishDate', e.target.value)} /></div>
           <div className="field"><label>Publish Time</label><input type="time" className="input" value={form.publishTime || ''} onChange={(e) => setField('publishTime', e.target.value)} /></div>
