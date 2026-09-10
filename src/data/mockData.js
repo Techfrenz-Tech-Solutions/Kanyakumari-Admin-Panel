@@ -114,17 +114,58 @@ export const rolePermissions = {
   },
 };
 
-// ── Analytics chart data (empty — will render blank charts) ─────────────────
+// ── Analytics chart data ─────────────────────────────────────────────────────
 
-export const viewsTrend = [];
+export const viewsTrend = [
+  { date: 'Aug 28', views: 3200, visitors: 1850 },
+  { date: 'Aug 29', views: 4100, visitors: 2300 },
+  { date: 'Aug 30', views: 3750, visitors: 2100 },
+  { date: 'Aug 31', views: 5200, visitors: 2900 },
+  { date: 'Sep 01', views: 6400, visitors: 3500 },
+  { date: 'Sep 02', views: 5800, visitors: 3200 },
+  { date: 'Sep 03', views: 4900, visitors: 2750 },
+  { date: 'Sep 04', views: 7100, visitors: 4100 },
+  { date: 'Sep 05', views: 8300, visitors: 4700 },
+  { date: 'Sep 06', views: 7600, visitors: 4300 },
+  { date: 'Sep 07', views: 6200, visitors: 3600 },
+  { date: 'Sep 08', views: 9100, visitors: 5200 },
+  { date: 'Sep 09', views: 10400, visitors: 5900 },
+  { date: 'Sep 10', views: 9700, visitors: 5500 },
+];
 
-export const categoryDistribution = [];
+export const categoryDistribution = [
+  { name: 'Politics',    value: 34 },
+  { name: 'Sports',      value: 22 },
+  { name: 'Cinema',      value: 18 },
+  { name: 'Business',    value: 12 },
+  { name: 'Technology',  value: 8  },
+  { name: 'Education',   value: 6  },
+];
 
-export const weeklyPublished = [];
+export const weeklyPublished = [
+  { day: 'Mon', published: 8,  draft: 3, pending: 2 },
+  { day: 'Tue', published: 12, draft: 5, pending: 4 },
+  { day: 'Wed', published: 7,  draft: 2, pending: 1 },
+  { day: 'Thu', published: 15, draft: 6, pending: 3 },
+  { day: 'Fri', published: 11, draft: 4, pending: 5 },
+  { day: 'Sat', published: 6,  draft: 1, pending: 2 },
+  { day: 'Sun', published: 4,  draft: 2, pending: 1 },
+];
 
-export const trafficSources = [];
+export const trafficSources = [
+  { name: 'Google',    value: 42 },
+  { name: 'Direct',    value: 24 },
+  { name: 'Facebook',  value: 16 },
+  { name: 'Twitter',   value: 9  },
+  { name: 'WhatsApp',  value: 6  },
+  { name: 'Others',    value: 3  },
+];
 
-export const deviceDistribution = [];
+export const deviceDistribution = [
+  { name: 'Mobile',  value: 68 },
+  { name: 'Desktop', value: 24 },
+  { name: 'Tablet',  value: 8  },
+];
 
 // ── Default site settings ────────────────────────────────────────────────────
 

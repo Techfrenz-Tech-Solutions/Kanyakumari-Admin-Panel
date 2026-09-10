@@ -8,7 +8,7 @@ import { Eye, TrendingUp, Users, Clock } from '../components/ui/Icons.jsx';
 import { loadData } from '../utils/storage.js';
 import { seedNews, viewsTrend } from '../data/mockData.js';
 
-const COLORS = ['#c81e1e', '#2461c9', '#1a8a4a', '#b3760a', '#454b64', '#8f1414', '#6b7182'];
+const COLORS = ['#c9960c', '#2461c9', '#1a8a4a', '#b3760a', '#454b64', '#865f06', '#6b7182'];
 
 export default function Analytics() {
   const news = loadData('news', seedNews);
@@ -50,7 +50,7 @@ export default function Analytics() {
               <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'var(--text-faint)' }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11, fill: 'var(--text-faint)' }} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
-              <Line type="monotone" dataKey="views" stroke="#c81e1e" strokeWidth={2.6} dot={false} />
+              <Line type="monotone" dataKey="views" stroke="#c9960c" strokeWidth={2.6} dot={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -66,7 +66,7 @@ export default function Analytics() {
                 <XAxis type="number" tick={{ fontSize: 11, fill: 'var(--text-faint)' }} axisLine={false} tickLine={false} />
                 <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 11, fill: 'var(--text-faint)' }} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
-                <Bar dataKey="views" fill="#c81e1e" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="views" fill="#c9960c" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

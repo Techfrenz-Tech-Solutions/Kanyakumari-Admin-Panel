@@ -4,6 +4,12 @@ import { Search, Sun, Moon, Menu, ChevronDown, User, Settings, LogOut, Plus, Ext
 import { useTheme } from '../../context/ThemeContext.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 
+const ACCENT_OPTIONS = [
+  { key: 'red',  label: 'Red',       color: '#c81e1e' },
+  { key: 'gold', label: 'Gold',      color: '#c9960c' },
+  { key: 'ink',  label: 'Ink Blue',  color: '#2461c9' },
+];
+
 const BREADCRUMB_MAP = {
   '/': 'Dashboard',
   '/news': 'All News',
@@ -25,7 +31,7 @@ const BREADCRUMB_MAP = {
 };
 
 export default function Header({ onMenuClick }) {
-  const { theme, toggleTheme } = useTheme();
+  const { theme, toggleTheme, accent, switchAccent } = useTheme();
   const { user, logout, hasPermission } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();

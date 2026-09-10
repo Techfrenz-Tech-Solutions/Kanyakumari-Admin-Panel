@@ -13,9 +13,9 @@ import {
 import { loadData } from '../utils/storage.js';
 import { seedNews, seedReporters, viewsTrend, categoryDistribution, weeklyPublished, trafficSources, deviceDistribution } from '../data/mockData.js';
 
-const PIE_COLORS = ['#c81e1e', '#2461c9', '#1a8a4a', '#b3760a', '#454b64', '#8f1414', '#6b7182'];
-const DEVICE_COLORS = ['#c81e1e', '#2461c9', '#1a8a4a'];
-const SOURCE_COLORS = ['#c81e1e', '#2461c9', '#e1306c', '#1da1f2', '#25d366', '#6b7182'];
+const PIE_COLORS = ['#c9960c', '#2461c9', '#1a8a4a', '#b3760a', '#454b64', '#865f06', '#6b7182'];
+const DEVICE_COLORS = ['#c9960c', '#2461c9', '#1a8a4a'];
+const SOURCE_COLORS = ['#c9960c', '#2461c9', '#e8b923', '#1da1f2', '#25d366', '#6b7182'];
 
 const DATE_FILTERS = ['Today', 'Yesterday', 'Last 7 Days', 'Last 30 Days'];
 
@@ -62,7 +62,7 @@ export default function Dashboard() {
         actions={
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <button className="btn btn-secondary" onClick={() => navigate('/news/pending')}>
-              {stats.pending > 0 && <span style={{ background: 'var(--red-500)', color: '#fff', borderRadius: '50%', width: 18, height: 18, fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>{stats.pending}</span>}
+              {stats.pending > 0 && <span style={{ background: 'var(--gold-500)', color: '#1a1200', borderRadius: '50%', width: 18, height: 18, fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 'none' }}>{stats.pending}</span>}
               Pending Review
             </button>
             <button className="btn btn-primary" onClick={() => navigate('/news/add')}>
@@ -78,8 +78,8 @@ export default function Dashboard() {
           onClick={() => navigate('/news/breaking')}
           style={{
             display: 'flex', alignItems: 'center', gap: 12,
-            background: 'linear-gradient(135deg, var(--red-700), var(--red-500))',
-            color: '#fff', padding: '11px 18px', borderRadius: 10,
+            background: 'linear-gradient(135deg, var(--gold-700), var(--gold-500))',
+            color: '#1a1200', padding: '11px 18px', borderRadius: 10,
             marginBottom: 18, cursor: 'pointer', fontSize: 13.5, fontWeight: 600,
           }}
         >
@@ -125,15 +125,15 @@ export default function Dashboard() {
               <h3>Website Traffic</h3>
               <div className="sub">Page views, unique visitors and sessions</div>
             </div>
-            <TrendingUp style={{ color: 'var(--red-500)', width: 18, height: 18 }} />
+            <TrendingUp style={{ color: 'var(--gold-500)', width: 18, height: 18 }} />
           </div>
           <div className="card-pad" style={{ paddingTop: 8 }}>
             <ResponsiveContainer width="100%" height={220}>
               <AreaChart data={viewsTrend} margin={{ left: -20, top: 6 }}>
                 <defs>
                   <linearGradient id="viewsGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#c81e1e" stopOpacity={0.3} />
-                    <stop offset="100%" stopColor="#c81e1e" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#c9960c" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="#c9960c" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="visitorsGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#2461c9" stopOpacity={0.25} />
@@ -145,7 +145,7 @@ export default function Dashboard() {
                 <YAxis tick={{ fontSize: 10, fill: 'var(--text-faint)' }} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Area type="monotone" dataKey="views" name="Page Views" stroke="#c81e1e" strokeWidth={2} fill="url(#viewsGrad)" />
+                <Area type="monotone" dataKey="views" name="Page Views" stroke="#c9960c" strokeWidth={2} fill="url(#viewsGrad)" />
                 <Area type="monotone" dataKey="visitors" name="Visitors" stroke="#2461c9" strokeWidth={2} fill="url(#visitorsGrad)" />
               </AreaChart>
             </ResponsiveContainer>
@@ -167,7 +167,7 @@ export default function Dashboard() {
                 <YAxis tick={{ fontSize: 11, fill: 'var(--text-faint)' }} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="published" name="Published" fill="#c81e1e" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="published" name="Published" fill="#c9960c" radius={[3, 3, 0, 0]} />
                 <Bar dataKey="draft" name="Draft" fill="#d3d6e2" radius={[3, 3, 0, 0]} />
                 <Bar dataKey="pending" name="Pending" fill="#fdf1dc" stroke="#b3760a" strokeWidth={1} radius={[3, 3, 0, 0]} />
               </BarChart>
@@ -266,7 +266,7 @@ export default function Dashboard() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
                   <span style={{
                     width: 22, height: 22, borderRadius: 6, flex: 'none',
-                    background: i === 0 ? 'var(--red-500)' : i === 1 ? 'var(--ink-700)' : 'var(--surface-2)',
+                    background: i === 0 ? 'var(--gold-500)' : i === 1 ? 'var(--ink-700)' : 'var(--surface-2)',
                     color: i < 2 ? '#fff' : 'var(--text-muted)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: 11, fontWeight: 800,
@@ -278,7 +278,7 @@ export default function Dashboard() {
                   <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', flex: 'none' }}>{(n.views || 0).toLocaleString('en-IN')}</span>
                 </div>
                 <div style={{ height: 5, background: 'var(--surface-2)', borderRadius: 999, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${Math.round((n.views / maxViews) * 100)}%`, background: i === 0 ? 'var(--red-500)' : 'var(--ink-500)', borderRadius: 999 }} />
+                  <div style={{ height: '100%', width: `${Math.round((n.views / maxViews) * 100)}%`, background: i === 0 ? 'var(--gold-500)' : 'var(--ink-500)', borderRadius: 999 }} />
                 </div>
               </div>
             ))}
