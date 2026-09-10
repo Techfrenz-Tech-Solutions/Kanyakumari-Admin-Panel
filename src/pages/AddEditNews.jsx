@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PageHead } from '../components/ui/PageHead.jsx';
-import { Upload, X, Save, Send, Calendar, Zap } from '../components/ui/Icons.jsx';
+import { Upload, X, Save, Send, Calendar, Zap, Video } from '../components/ui/Icons.jsx';
 import { articlesApi, mapArticlePayload } from '../api/articles.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
@@ -10,7 +10,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 const emptyForm = {
   title: '', titleTA: '', shortDescription: '', excerptTA: '', content: '', contentTA: '',
   categoryId: '', subCategoryId: '', authorId: '', location: '',
-  featuredImageId: null, image: '', tags: [], publishDate: today(), publishTime: '09:00',
+  featuredImageId: null, image: '', videoUrl: '', tags: [], publishDate: today(), publishTime: '09:00',
   isBreaking: false, isFeatured: false, status: 'draft',
 };
 const itemsOf = (value) => Array.isArray(value) ? value : value?.items || value?.categories || value?.subcategories || value?.reporters || value?.areas || [];
@@ -22,6 +22,7 @@ export default function AddEditNews() {
   const toast = useToast();
   const { hasPermission } = useAuth();
   const fileRef = useRef(null);
+  const videoRef = useRef(null);
   const [form, setForm] = useState(emptyForm);
   const [references, setReferences] = useState({ categories: [], subcategories: [], reporters: [], media: [] });
   const [tagInput, setTagInput] = useState('');
@@ -30,6 +31,7 @@ export default function AddEditNews() {
   const [loadError, setLoadError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -71,6 +73,21 @@ export default function AddEditNews() {
       toast.success('Image uploaded', file.name);
     } catch (err) { toast.error('Image upload failed', err.message); }
     finally { setUploading(false); }
+  };
+
+  const uploadVideo = async (event) => {
+    const file = event.target.files?.[0]; event.target.value = '';
+    if (!file || uploadingVideo) return;
+    setUploadingVideo(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('kind', 'video');
+      const media = await articlesApi.uploadMedia(formData);
+      setForm((current) => ({ ...current, videoUrl: media.url }));
+      toast.success('Video uploaded', file.name);
+    } catch (err) { toast.error('Video upload failed', err.message); }
+    finally { setUploadingVideo(false); }
   };
 
   const addTag = (event) => {
@@ -127,6 +144,32 @@ export default function AddEditNews() {
           {form.image && <div className="image-preview" style={{ maxWidth: 340 }}><img src={form.image} alt="Featured" /><button type="button" className="remove-btn" onClick={() => setForm((current) => ({ ...current, image: '', featuredImageId: null }))}><X /></button></div>}
           {hasPermission('media.upload') && <><button type="button" className="btn btn-secondary" disabled={uploading} onClick={() => fileRef.current?.click()}><Upload />{uploading ? 'Uploading…' : 'Upload image'}</button><input ref={fileRef} type="file" accept="image/*" hidden onChange={uploadImage} /></>}
           {hasPermission('media.view') && references.media.length > 0 && <select className="select" value={form.featuredImageId || ''} onChange={(e) => { const media = references.media.find((item) => String(item.id) === e.target.value); setForm((current) => ({ ...current, featuredImageId: media?.id || null, image: media?.url || '' })); }}><option value="">Choose from media library</option>{references.media.map((item) => <option key={item.id} value={item.id}>{item.name || item.originalName || `Image ${item.id}`}</option>)}</select>}
+        </div>
+        <div className="field"><label><Video style={{ width: 14, height: 14, marginRight: 4, verticalAlign: -2 }} />Featured Video</label>
+          {form.videoUrl && (
+            <div className="image-preview" style={{ maxWidth: 340, position: 'relative' }}>
+              <video src={form.videoUrl} controls style={{ width: '100%', borderRadius: 6, display: 'block' }} />
+              <button type="button" className="remove-btn" onClick={() => setForm((current) => ({ ...current, videoUrl: '' }))}><X /></button>
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            {hasPermission('media.upload') && (
+              <>
+                <button type="button" className="btn btn-secondary" disabled={uploadingVideo} onClick={() => videoRef.current?.click()}>
+                  <Upload />{uploadingVideo ? 'Uploading…' : 'Upload video'}
+                </button>
+                <input ref={videoRef} type="file" accept="video/*" hidden onChange={uploadVideo} />
+              </>
+            )}
+            <span className="faint" style={{ fontSize: 12 }}>or</span>
+            <input
+              className="input"
+              style={{ flex: 1, minWidth: 200 }}
+              placeholder="Paste YouTube or video URL…"
+              value={form.videoUrl}
+              onChange={(e) => setForm((current) => ({ ...current, videoUrl: e.target.value }))}
+            />
+          </div>
         </div>
         <div className="field"><label>Tags</label><div className="tag-input-wrap">{form.tags.map((tag) => <span className="tag-chip" key={tag}>{tag}<button type="button" onClick={() => setField('tags', form.tags.filter((item) => item !== tag))}><X /></button></span>)}<input value={tagInput} onChange={(e) => setTagInput(e.target.value)} onKeyDown={addTag} placeholder="Type a tag and press Enter" /></div></div>
       </div>

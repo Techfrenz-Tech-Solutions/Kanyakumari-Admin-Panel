@@ -4,7 +4,7 @@ import {
   Grid, Newspaper, Tag, Users, Image, Megaphone,
   ShieldCheck, Settings, LogOut, PanelLeftClose, PanelLeftOpen,
   ChevronDown, ChevronRight, Zap, List, PenSquare, Clock, CheckCircle,
-  FlameIcon, ClipboardList,
+  FlameIcon, ClipboardList, Briefcase, MapPin,
 } from '../ui/Icons.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import logoImg from '../../Image/WhatsApp_Image_2026-08-24_at_2.52.11_PM-removebg-preview.png';
@@ -63,6 +63,8 @@ export const SECTIONS = [
     defaultOpen: false,
     items: [
       { to: '/advertisements', label: 'Advertisements', icon: Megaphone, permission: 'ads.view' },
+      { to: '/jobs', label: 'Jobs', icon: Briefcase, permission: 'ads.view' },
+      { to: '/tourist-info', label: 'Tourist Info', icon: MapPin, permission: 'ads.view' },
       { to: '/users-roles', label: 'Users & Roles', icon: ShieldCheck, permission: 'users.view' },
     ],
   },

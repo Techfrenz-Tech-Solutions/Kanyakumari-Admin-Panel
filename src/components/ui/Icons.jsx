@@ -105,3 +105,4 @@ export const Pencil = Svg(<><path d="M17 3a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /><
 export const Building = Svg(<><rect x="4" y="2" width="16" height="20" rx="1" /><path d="M9 22v-4h6v4" /><path d="M8 6h.01" /><path d="M16 6h.01" /><path d="M12 6h.01" /><path d="M12 10h.01" /><path d="M8 10h.01" /><path d="M16 10h.01" /><path d="M12 14h.01" /><path d="M8 14h.01" /><path d="M16 14h.01" /></>);
 export const Clock3 = Svg(<><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 16 12" /></>);
 export const CheckCheck = Svg(<><path d="M18 6 7 17l-5-5" /><path d="m22 10-7.5 7.5L13 16" /></>);
+export const Briefcase = Svg(<><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" /><line x1="12" y1="12" x2="12" y2="12.01" /><path d="M2 12h20" /></>);
