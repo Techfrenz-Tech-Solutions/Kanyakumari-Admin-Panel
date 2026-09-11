@@ -49,6 +49,7 @@ export function mapArticlePayload(form = {}) {
     content: form.content,
     contentTA: form.contentTA === undefined ? undefined : (form.contentTA || null),
     location: optionalText(form.location, { nullable: true }),
+    videoUrl: optionalText(form.videoUrl, { nullable: true }),
     tags: Array.isArray(form.tags) ? form.tags.map((tag) => String(tag).trim()).filter(Boolean) : [],
     isBreaking: Boolean(form.isBreaking),
     isFeatured: Boolean(form.isFeatured),

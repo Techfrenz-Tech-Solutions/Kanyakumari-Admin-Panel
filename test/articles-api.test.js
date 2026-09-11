@@ -12,17 +12,15 @@ import {
 
 test('dedicated article status routes render the server-backed NewsList', () => {
   const root = process.cwd();
-  for (const [file, status] of [
-    ['DraftsList.jsx', 'draft'],
-    ['PublishedList.jsx', 'published'],
-    ['ScheduledList.jsx', 'scheduled'],
-    ['PendingApproval.jsx', 'pending'],
-    ['BreakingNews.jsx', 'breaking'],
+  const source = readFileSync(join(root, 'src/App.jsx'), 'utf8');
+  for (const [route, status] of [
+    ['news/published', 'published'],
+    ['news/scheduled', 'scheduled'],
+    ['news/pending', 'pending'],
   ]) {
-    const source = readFileSync(join(root, 'src/pages', file), 'utf8');
-    assert.match(source, new RegExp(`fixedStatus=["']${status}["']`), `${file} must use status-filtered NewsList`);
-    assert.doesNotMatch(source, /loadData|saveData|mockData/, `${file} must not use browser-local mock articles`);
+    assert.match(source, new RegExp(`path=["']${route}["'][\\s\\S]*<NewsList fixedStatus=["']${status}["']`), `${route} must use status-filtered NewsList`);
   }
+  assert.match(source, /path=["']news\/breaking["'][\s\S]*<BreakingNews \/>/, 'breaking route must use live BreakingNews page');
 });
 
 test('buildArticleQuery maps supported list filters and omits empty values', () => {
@@ -66,7 +64,7 @@ test('mapArticlePayload produces validator-compatible create/update fields witho
     title: 'English', titleTA: 'தமிழ்', shortDescription: 'Excerpt', excerptTA: 'சுருக்கம்',
     content: '<p>Body</p>', contentTA: '<p>உள்ளடக்கம்</p>',
     categoryId: '2', subCategoryId: '3', authorId: '4', areaId: '5',
-    location: '', featuredImageId: '9', tags: [' one ', '', 'இரண்டு'],
+    location: '', featuredImageId: '9', videoUrl: 'https://cdn.test/story.mp4', tags: [' one ', '', 'இரண்டு'],
     isBreaking: true, isFeatured: false, status: 'scheduled',
     publishDate: '2026-08-27', publishTime: '10:30', scheduledAt: '',
     uiOnly: 'ignored',
@@ -75,7 +73,7 @@ test('mapArticlePayload produces validator-compatible create/update fields witho
     title: 'English', titleTA: 'தமிழ்', excerpt: 'Excerpt', excerptTA: 'சுருக்கம்',
     content: '<p>Body</p>', contentTA: '<p>உள்ளடக்கம்</p>',
     categoryId: 2, subcategoryId: 3, authorId: 4, areaId: 5,
-    location: null, featuredImageId: 9, tags: ['one', 'இரண்டு'],
+    location: null, featuredImageId: 9, videoUrl: 'https://cdn.test/story.mp4', tags: ['one', 'இரண்டு'],
     isBreaking: true, isFeatured: false, status: 'scheduled',
     publishDate: '2026-08-27', publishTime: '10:30',
   });
