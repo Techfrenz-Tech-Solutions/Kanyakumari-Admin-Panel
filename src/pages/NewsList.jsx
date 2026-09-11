@@ -98,8 +98,8 @@ export default function NewsList({ fixedStatus = null }) {
   </>;
 
   return <div>
-    <PageHead eyebrow="Content" title={fixedStatus ? `${fixedStatus[0].toUpperCase()}${fixedStatus.slice(1)} Articles` : 'News Management'} desc="Manage server-backed articles and their editorial lifecycle."
-      actions={hasPermission('news.create') ? <button className="btn btn-primary" onClick={() => navigate('/news/add')}><Plus />Add News</button> : null} />
+    {/* <PageHead eyebrow="Content" title={fixedStatus ? `${fixedStatus[0].toUpperCase()}${fixedStatus.slice(1)} Articles` : 'News Management'} desc="Manage server-backed articles and their editorial lifecycle."
+      actions={hasPermission('news.create') ? <button className="btn btn-primary" onClick={() => navigate('/news/add')}><Plus />Add News</button> : null} /> */}
     {!fixedStatus && <div className="chip-row" style={{ marginBottom: 16 }}>
       {TABS.map((tab) => <button key={tab.key} className={`filter-chip ${activeTab === tab.key ? 'active' : ''}`} onClick={() => setTab(tab.key)}>{tab.label}</button>)}
     </div>}

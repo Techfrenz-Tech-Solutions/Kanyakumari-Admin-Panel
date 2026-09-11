@@ -1,67 +1,127 @@
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { PageHead } from '../components/ui/PageHead.jsx';
 import { EmptyState } from '../components/ui/Badges.jsx';
 import Modal from '../components/ui/Modal.jsx';
 import ConfirmModal from '../components/ui/ConfirmModal.jsx';
 import { Plus, Edit2, Trash2, Megaphone, Upload } from '../components/ui/Icons.jsx';
-import { loadData, saveData, uid } from '../utils/storage.js';
-import { seedAds } from '../data/mockData.js';
 import { useToast } from '../context/ToastContext.jsx';
+import { adsApi } from '../api/ads.js';
+import { mediaApi } from '../api/media.js';
 
 const POSITIONS = ['Header Banner', 'Sidebar', 'In-Article', 'Footer Banner', 'Popup'];
-const emptyForm = { title: '', image: '', position: POSITIONS[0], startDate: '', endDate: '', status: 'active' };
+const emptyForm = { title: '', image: '', imageId: null, images: [], position: POSITIONS[0], linkUrl: '', startDate: '', endDate: '', status: 'active' };
+const messageOf = (error) => error?.message || 'Something went wrong. Please try again.';
 
 export default function Advertisements() {
   const toast = useToast();
-  const [ads, setAds] = useState(() => loadData('ads', seedAds));
+  const [ads, setAds] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const fileRef = useRef(null);
 
-  const persist = (list) => { setAds(list); saveData('ads', list); };
+  const loadAds = useCallback(async () => {
+    setLoading(true);
+    setLoadError('');
+    try {
+      const data = await adsApi.list({ limit: 100 });
+      setAds(data.items || []);
+    } catch (error) {
+      setLoadError(messageOf(error));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadAds(); }, [loadAds]);
 
   const openAdd = () => { setEditing(null); setForm(emptyForm); setErrors({}); setModalOpen(true); };
-  const openEdit = (ad) => { setEditing(ad); setForm({ ...emptyForm, ...ad }); setErrors({}); setModalOpen(true); };
+  const openEdit = (ad) => { setEditing(ad); setForm({ ...emptyForm, ...ad, images: ad.image ? [{ id: ad.imageId, url: ad.image, name: ad.title }] : [] }); setErrors({}); setModalOpen(true); };
 
-  const handleImage = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setForm((f) => ({ ...f, image: reader.result }));
-    reader.readAsDataURL(file);
+  const handleImage = async (event) => {
+    const files = Array.from(event.target.files || []);
+    event.target.value = '';
+    if (!files.length) return;
+    setUploading(true);
+    try {
+      const uploaded = [];
+      for (const file of files) {
+        const media = await mediaApi.upload(file, 'image');
+        uploaded.push({ id: media.id, url: media.url, name: media.name || media.originalName || file.name });
+      }
+      setForm((current) => ({
+        ...current,
+        images: editing ? uploaded.slice(0, 1) : [...current.images, ...uploaded],
+        imageId: uploaded[0]?.id || current.imageId,
+        image: uploaded[0]?.url || current.image,
+      }));
+      toast.success('Image uploaded', `${uploaded.length} creative${uploaded.length > 1 ? 's' : ''} ready.`);
+    } catch (error) {
+      toast.error('Image upload failed', messageOf(error));
+    } finally {
+      setUploading(false);
+    }
   };
 
-  const submit = () => {
+  const submit = async () => {
     const errs = {};
     if (!form.title.trim()) errs.title = 'Title is required.';
+    if (!editing && form.images.length === 0) errs.image = 'Upload at least one advertisement image.';
+    if (editing && !form.imageId) errs.image = 'Upload an advertisement image.';
     if (!form.startDate) errs.startDate = 'Start date is required.';
     if (!form.endDate) errs.endDate = 'End date is required.';
     if (form.startDate && form.endDate && form.endDate < form.startDate) errs.endDate = 'End date must be after start date.';
     setErrors(errs);
     if (Object.keys(errs).length) return;
 
-    if (editing) {
-      persist(ads.map((a) => (a.id === editing.id ? { ...a, ...form } : a)));
-      toast.success('Advertisement updated', `"${form.title}" has been saved.`);
-    } else {
-      persist([{ id: uid('ad'), ...form, image: form.image || `https://picsum.photos/seed/${uid('ad')}/640/300`, clicks: 0, impressions: 0 }, ...ads]);
-      toast.success('Advertisement created', `"${form.title}" has been added.`);
+    setSubmitting(true);
+    try {
+      if (editing) {
+        await adsApi.update(editing.id, { ...form, imageId: form.images[0]?.id || form.imageId });
+        toast.success('Advertisement updated', `"${form.title}" has been saved.`);
+      } else {
+        await Promise.all(form.images.map((image, index) => adsApi.create({
+          ...form,
+          title: form.images.length > 1 ? `${form.title.trim()} ${index + 1}` : form.title.trim(),
+          imageId: image.id,
+        })));
+        toast.success('Advertisements created', `${form.images.length} creative${form.images.length > 1 ? 's' : ''} added.`);
+      }
+      await loadAds();
+      setModalOpen(false);
+    } catch (error) {
+      setErrors({ submit: messageOf(error) });
+    } finally {
+      setSubmitting(false);
     }
-    setModalOpen(false);
   };
 
-  const toggleStatus = (ad) => {
-    persist(ads.map((a) => (a.id === ad.id ? { ...a, status: a.status === 'active' ? 'inactive' : 'active' } : a)));
-    toast.info('Status updated', `"${ad.title}" is now ${ad.status === 'active' ? 'disabled' : 'enabled'}.`);
+  const toggleStatus = async (ad) => {
+    try {
+      await adsApi.update(ad.id, { ...ad, status: ad.status === 'active' ? 'inactive' : 'active' });
+      await loadAds();
+      toast.info('Status updated', `"${ad.title}" is now ${ad.status === 'active' ? 'disabled' : 'enabled'}.`);
+    } catch (error) {
+      toast.error('Unable to update status', messageOf(error));
+    }
   };
 
-  const confirmDelete = () => {
-    persist(ads.filter((a) => a.id !== deleteTarget.id));
-    toast.success('Advertisement deleted', `"${deleteTarget.title}" was removed.`);
-    setDeleteTarget(null);
+  const confirmDelete = async () => {
+    try {
+      await adsApi.remove(deleteTarget.id);
+      await loadAds();
+      toast.success('Advertisement deleted', `"${deleteTarget.title}" was removed.`);
+    } catch (error) {
+      toast.error('Unable to delete advertisement', messageOf(error));
+    } finally {
+      setDeleteTarget(null);
+    }
   };
 
   return (
@@ -73,7 +133,11 @@ export default function Advertisements() {
         actions={<button className="btn btn-primary" onClick={openAdd}><Plus />Add Advertisement</button>}
       />
 
-      {ads.length === 0 ? (
+      {loading ? (
+        <div className="card"><div className="empty-state"><div className="t">Loading advertisements…</div></div></div>
+      ) : loadError ? (
+        <div className="card"><div className="empty-state"><div className="t">Unable to load advertisements</div><div>{loadError}</div><button className="btn btn-secondary" onClick={loadAds}>Retry</button></div></div>
+      ) : ads.length === 0 ? (
         <div className="card"><EmptyState icon={Megaphone} title="No advertisements yet" message="Add your first ad placement." /></div>
       ) : (
         <div className="reporter-grid">
@@ -92,8 +156,8 @@ export default function Advertisements() {
                 <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>{ad.position}</div>
                 <div className="muted" style={{ fontSize: 11.5, marginTop: 6 }}>{ad.startDate} → {ad.endDate}</div>
                 <div className="grid-2" style={{ marginTop: 12 }}>
-                  <div><div className="faint" style={{ fontSize: 10.5 }}>IMPRESSIONS</div><div className="mono" style={{ fontWeight: 700, fontSize: 13 }}>{ad.impressions.toLocaleString('en-IN')}</div></div>
-                  <div><div className="faint" style={{ fontSize: 10.5 }}>CLICKS</div><div className="mono" style={{ fontWeight: 700, fontSize: 13 }}>{ad.clicks.toLocaleString('en-IN')}</div></div>
+                  <div><div className="faint" style={{ fontSize: 10.5 }}>IMPRESSIONS</div><div className="mono" style={{ fontWeight: 700, fontSize: 13 }}>{Number(ad.impressions || 0).toLocaleString('en-IN')}</div></div>
+                  <div><div className="faint" style={{ fontSize: 10.5 }}>CLICKS</div><div className="mono" style={{ fontWeight: 700, fontSize: 13 }}>{Number(ad.clicks || 0).toLocaleString('en-IN')}</div></div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
                   <button className="btn btn-secondary btn-sm" style={{ flex: 1 }} onClick={() => openEdit(ad)}><Edit2 />Edit</button>
@@ -107,11 +171,11 @@ export default function Advertisements() {
 
       <Modal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={() => !submitting && setModalOpen(false)}
         title={editing ? 'Edit Advertisement' : 'Add Advertisement'}
         footer={<>
-          <button className="btn btn-secondary" onClick={() => setModalOpen(false)}>Cancel</button>
-          <button className="btn btn-primary" onClick={submit}>{editing ? 'Save Changes' : 'Create Advertisement'}</button>
+          <button className="btn btn-secondary" disabled={submitting} onClick={() => setModalOpen(false)}>Cancel</button>
+          <button className="btn btn-primary" disabled={submitting || uploading} onClick={submit}>{submitting ? 'Saving…' : editing ? 'Save Changes' : 'Create Advertisement'}</button>
         </>}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -122,19 +186,31 @@ export default function Advertisements() {
           </div>
 
           <div className="field">
-            <label>Advertisement Image</label>
-            {form.image ? (
-              <div className="image-preview">
-                <img src={form.image} alt="" />
-                <button className="remove-btn" onClick={() => setForm({ ...form, image: '' })}></button>
-              </div>
-            ) : (
-              <div className="dropzone" onClick={() => fileRef.current?.click()}>
-                <Upload />
-                <div style={{ fontWeight: 600, fontSize: 13 }}>Click to upload creative</div>
+            <label>Advertisement Images *</label>
+            {form.images.length > 0 && (
+              <div className="media-grid">
+                {form.images.map((image) => (
+                  <div className="image-preview" key={image.id || image.url}>
+                    <img src={image.url} alt={image.name || 'Advertisement creative'} />
+                    <button type="button" className="remove-btn" onClick={() => setForm((current) => {
+                      const next = current.images.filter((item) => item !== image);
+                      return { ...current, images: next, imageId: next[0]?.id || null, image: next[0]?.url || '' };
+                    })}></button>
+                  </div>
+                ))}
               </div>
             )}
-            <input ref={fileRef} type="file" accept="image/*" hidden onChange={handleImage} />
+            <div className="dropzone" onClick={() => fileRef.current?.click()}>
+              <Upload />
+              <div style={{ fontWeight: 600, fontSize: 13 }}>{uploading ? 'Uploading…' : editing ? 'Click to replace creative' : 'Click to upload one or more creatives'}</div>
+            </div>
+            <input ref={fileRef} type="file" accept="image/*" multiple={!editing} hidden onChange={handleImage} />
+            {errors.image && <div className="field-error">{errors.image}</div>}
+          </div>
+
+          <div className="field">
+            <label>Destination URL</label>
+            <input className="input" value={form.linkUrl} onChange={(e) => setForm({ ...form, linkUrl: e.target.value })} placeholder="https://example.com" />
           </div>
 
           <div className="form-grid">
@@ -162,6 +238,7 @@ export default function Advertisements() {
               {errors.endDate && <div className="field-error">{errors.endDate}</div>}
             </div>
           </div>
+          {errors.submit && <div className="field-error">{errors.submit}</div>}
         </div>
       </Modal>
 
