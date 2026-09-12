@@ -15,6 +15,7 @@ import MediaLibrary from './pages/MediaLibrary.jsx';
 import Advertisements from './pages/Advertisements.jsx';
 import Jobs from './pages/Jobs.jsx';
 import TouristInfo from './pages/TouristInfo.jsx';
+import ContactUs from './pages/ContactUs.jsx';
 import UsersRoles from './pages/UsersRoles.jsx';
 import Settings from './pages/Settings.jsx';
 import Profile from './pages/Profile.jsx';
@@ -97,6 +98,7 @@ export default function App() {
         <Route path="advertisements" element={protectedPage('ads.view', <Advertisements />)} />
         <Route path="jobs" element={protectedPage('ads.view', <Jobs />)} />
         <Route path="tourist-info" element={protectedPage('ads.view', <TouristInfo />)} />
+        <Route path="contact-us" element={protectedPage('ads.view', <ContactUs />)} />
         <Route path="users-roles" element={protectedPage('users.view', <UsersRoles />)} />
         {/* Insights & Config */}
         <Route path="settings" element={protectedPage('settings.view', <Settings />)} />

@@ -7,6 +7,7 @@ import { Plus, Edit2, Trash2, Tag, Search } from '../components/ui/Icons.jsx';
 import { taxonomyApi } from '../api/taxonomy.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
+import { useAutoRefresh } from '../context/RefreshContext.jsx';
 
 const emptyForm = { name: '', slug: '', categoryId: '', description: '', status: 'active' };
 const messageOf = (error) => error?.message || 'Something went wrong. Please try again.';
@@ -41,6 +42,7 @@ export default function SubCategories() {
     finally { setLoading(false); }
   }, []);
   useEffect(() => { loadData(); }, [loadData]);
+  useAutoRefresh(loadData);
 
   const filtered = useMemo(() => subcategories.filter((subcategory) => {
     const parent = categoryName(subcategory, categories);

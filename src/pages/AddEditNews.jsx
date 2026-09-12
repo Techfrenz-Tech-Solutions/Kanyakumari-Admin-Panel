@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PageHead } from '../components/ui/PageHead.jsx';
-import { Upload, X, Save, Send, Calendar, Zap, Video } from '../components/ui/Icons.jsx';
+import { Upload, X, Save, Send, Calendar, FlameIcon, Star, Video } from '../components/ui/Icons.jsx';
 import { articlesApi, mapArticlePayload } from '../api/articles.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
@@ -181,7 +181,7 @@ export default function AddEditNews() {
           {input('location', 'Location')}
           <div className="field"><label><Calendar /> Publish Date</label><input type="date" className="input" value={form.publishDate || ''} onChange={(e) => setField('publishDate', e.target.value)} /></div>
           <div className="field"><label>Publish Time</label><input type="time" className="input" value={form.publishTime || ''} onChange={(e) => setField('publishTime', e.target.value)} /></div>
-          {[['isBreaking', 'Mark as Breaking News'], ['isFeatured', 'Mark as Featured']].map(([key, label]) => <div className="flex-between" key={key}><span><Zap /> {label}</span><label className="switch"><input type="checkbox" checked={form[key]} onChange={(e) => setField(key, e.target.checked)} /><span className="slider" /></label></div>)}
+          {[['isBreaking', 'Mark as Breaking News', FlameIcon], ['isFeatured', 'Mark as Featured', Star]].map(([key, label, Icon]) => <div className="flex-between" key={key}><span><Icon /> {label}</span><label className="switch"><input type="checkbox" checked={form[key]} onChange={(e) => setField(key, e.target.checked)} /><span className="slider" /></label></div>)}
         </div>
         <div className="card card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <button className="btn btn-secondary btn-block" disabled={submitting} onClick={() => persist('draft')}><Save />Save Changes</button>

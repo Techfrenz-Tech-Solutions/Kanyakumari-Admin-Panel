@@ -6,6 +6,7 @@ import { Plus, Edit2, Trash2, ShieldCheck, Mail, Copy } from '../components/ui/I
 import { usersApi, USER_ROLES, roleLabel } from '../api/users.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
+import { useAutoRefresh } from '../context/RefreshContext.jsx';
 
 const emptyForm = { name: '', email: '', role: 'editor', status: 'active', password: '', extraPermissions: '' };
 const messageOf = (error) => error?.message || 'Something went wrong. Please try again.';
@@ -35,6 +36,7 @@ export default function UsersRoles() {
     finally { setLoading(false); }
   }, []);
   useEffect(() => { loadUsers(); }, [loadUsers]);
+  useAutoRefresh(loadUsers);
 
   const openAdd = () => { setEditing(null); setForm(emptyForm); setErrors({}); setModalOpen(true); };
   const openEdit = (target) => {

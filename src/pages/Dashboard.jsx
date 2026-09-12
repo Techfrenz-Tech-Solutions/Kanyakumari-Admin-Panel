@@ -119,6 +119,7 @@ export default function Dashboard() {
 
       {/* Charts row 1 */}
       <div className="grid-2" style={{ marginBottom: 20 }}>
+        {/*
         <div className="card">
           <div className="card-head">
             <div>
@@ -151,6 +152,7 @@ export default function Dashboard() {
             </ResponsiveContainer>
           </div>
         </div>
+        */}
 
         <div className="card">
           <div className="card-head">
@@ -174,9 +176,58 @@ export default function Dashboard() {
             </ResponsiveContainer>
           </div>
         </div>
+
+        {/* Top Articles — sits beside Publishing Activity */}
+        <div className="card">
+          <div className="card-head">
+            <div><h3>Top Articles</h3><div className="sub">Most-read articles this period</div></div>
+            <span className="btn btn-ghost btn-sm" onClick={() => navigate('/analytics')} style={{ cursor: 'pointer' }}>Analytics →</span>
+          </div>
+          <div className="card-pad" style={{ paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {topArticles.map((n, i) => (
+              <div key={n.id}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                  <span style={{
+                    width: 22, height: 22, borderRadius: 6, flex: 'none',
+                    background: i === 0 ? 'var(--gold-500)' : i === 1 ? 'var(--ink-700)' : 'var(--surface-2)',
+                    color: i < 2 ? '#fff' : 'var(--text-muted)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 11, fontWeight: 800,
+                  }}>{i + 1}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.title}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-faint)', marginTop: 2 }}>{n.category} · {n.author}</div>
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', flex: 'none' }}>{(n.views || 0).toLocaleString('en-IN')}</span>
+                </div>
+                <div style={{ height: 5, background: 'var(--surface-2)', borderRadius: 999, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${Math.round((n.views / maxViews) * 100)}%`, background: i === 0 ? 'var(--gold-500)' : 'var(--ink-500)', borderRadius: 999 }} />
+                </div>
+              </div>
+            ))}
+
+            {/* Quick stats */}
+            <div style={{ marginTop: 8, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+              <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Quick Stats</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                {[
+                  { label: 'Avg. Views/Article', value: Math.round(news.reduce((s, n) => s + n.views, 0) / (news.length || 1)).toLocaleString('en-IN') },
+                  { label: 'Published Rate', value: `${Math.round((stats.published / (stats.total || 1)) * 100)}%` },
+                  { label: 'Active Reporters', value: loadData('reporters', seedReporters).filter(r => r.status === 'active').length },
+                ].map((s) => (
+                  <div key={s.label} style={{ background: 'var(--surface-2)', borderRadius: 8, padding: '10px 12px' }}>
+                    <div style={{ fontSize: 17, fontWeight: 700, fontFamily: 'var(--font-display)' }}>{s.value}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-faint)', marginTop: 2 }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Charts row 2 — Category + Device + Traffic Sources */}
+      {/*
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 20 }} className="chart-trio">
         <div className="card">
           <div className="card-head"><div><h3>By Category</h3><div className="sub">Article distribution</div></div></div>
@@ -223,9 +274,10 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+      */}
 
-      {/* Bottom row — Recent News + Top Articles */}
-      <div className="grid-2">
+      {/* Bottom row — Recent News (full width) */}
+      <div>
         <div className="card">
           <div className="card-head">
             <div><h3>Recent News</h3><div className="sub">Latest articles added to the CMS</div></div>
@@ -252,53 +304,6 @@ export default function Dashboard() {
                 <span style={{ fontSize: 11.5, color: 'var(--text-faint)', flex: 'none' }}>{(n.views || 0).toLocaleString('en-IN')} views</span>
               </div>
             ))}
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-head">
-            <div><h3>Top Articles</h3><div className="sub">Most-read articles this period</div></div>
-            <span className="btn btn-ghost btn-sm" onClick={() => navigate('/analytics')} style={{ cursor: 'pointer' }}>Analytics →</span>
-          </div>
-          <div className="card-pad" style={{ paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {topArticles.map((n, i) => (
-              <div key={n.id}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                  <span style={{
-                    width: 22, height: 22, borderRadius: 6, flex: 'none',
-                    background: i === 0 ? 'var(--gold-500)' : i === 1 ? 'var(--ink-700)' : 'var(--surface-2)',
-                    color: i < 2 ? '#fff' : 'var(--text-muted)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 11, fontWeight: 800,
-                  }}>{i + 1}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.title}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-faint)', marginTop: 2 }}>{n.category} · {n.author}</div>
-                  </div>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', flex: 'none' }}>{(n.views || 0).toLocaleString('en-IN')}</span>
-                </div>
-                <div style={{ height: 5, background: 'var(--surface-2)', borderRadius: 999, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${Math.round((n.views / maxViews) * 100)}%`, background: i === 0 ? 'var(--gold-500)' : 'var(--ink-500)', borderRadius: 999 }} />
-                </div>
-              </div>
-            ))}
-
-            {/* Quick stats */}
-            <div style={{ marginTop: 8, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
-              <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Quick Stats</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                {[
-                  { label: 'Avg. Views/Article', value: Math.round(news.reduce((s, n) => s + n.views, 0) / (news.length || 1)).toLocaleString('en-IN') },
-                  { label: 'Published Rate', value: `${Math.round((stats.published / (stats.total || 1)) * 100)}%` },
-                  { label: 'Active Reporters', value: loadData('reporters', seedReporters).filter(r => r.status === 'active').length },
-                ].map((s) => (
-                  <div key={s.label} style={{ background: 'var(--surface-2)', borderRadius: 8, padding: '10px 12px' }}>
-                    <div style={{ fontSize: 17, fontWeight: 700, fontFamily: 'var(--font-display)' }}>{s.value}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-faint)', marginTop: 2 }}>{s.label}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         </div>
       </div>

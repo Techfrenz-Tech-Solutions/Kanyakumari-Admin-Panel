@@ -1,18 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageHead } from '../components/ui/PageHead.jsx';
-import { Save, Mail, Lock, User } from '../components/ui/Icons.jsx';
+import { Save, Mail, Lock, User, Upload } from '../components/ui/Icons.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
+import { mediaApi } from '../api/media.js';
 
 export default function Profile() {
   const { user, updateProfile, changePassword } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
+  const avatarInputRef = useRef(null);
   const [tab, setTab] = useState('profile');
   const [profile, setProfile] = useState({ name: '', phone: '', bio: '' });
   const [profileError, setProfileError] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState(null);
   const [passwords, setPasswords] = useState({ current: '', newPass: '', confirm: '' });
   const [pwErrors, setPwErrors] = useState({});
   const [savingPassword, setSavingPassword] = useState(false);
@@ -24,6 +28,29 @@ export default function Profile() {
       bio: user?.bio || '',
     });
   }, [user]);
+
+  const handleAvatarChange = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    // Show local preview instantly
+    const reader = new FileReader();
+    reader.onload = () => setAvatarPreview(reader.result);
+    reader.readAsDataURL(file);
+
+    setUploadingAvatar(true);
+    try {
+      const media = await mediaApi.upload(file, 'image');
+      await updateProfile({ avatar: media.url });
+      toast.success('Profile photo updated', 'Your new avatar is now live.');
+    } catch (error) {
+      setAvatarPreview(null); // revert preview on failure
+      toast.error('Upload failed', error.message || 'Could not update your profile photo.');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   const saveProfile = async () => {
     if (!profile.name.trim()) {
@@ -73,11 +100,48 @@ export default function Profile() {
       <PageHead eyebrow="Account" title="My Profile" desc="Manage your server-backed account information and password." />
       <div className="two-col" style={{ alignItems: 'flex-start' }}>
         <div className="card card-pad" style={{ textAlign: 'center' }}>
-          {user?.avatar ? (
-            <img src={user.avatar} alt="Avatar" style={{ width: 96, height: 96, borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--border)', marginBottom: 16 }} />
-          ) : (
-            <div style={{ width: 96, height: 96, borderRadius: '50%', margin: '0 auto 16px', background: 'linear-gradient(145deg, var(--red-500), var(--ink-700))', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, fontWeight: 700, fontFamily: 'var(--font-display)', border: '3px solid var(--border)' }}>{initials}</div>
-          )}
+          {/* Clickable avatar with edit overlay */}
+          <div
+            style={{ position: 'relative', width: 96, height: 96, margin: '0 auto 16px', cursor: 'pointer' }}
+            onClick={() => !uploadingAvatar && avatarInputRef.current?.click()}
+            title="Change profile photo"
+          >
+            {avatarPreview || user?.avatar ? (
+              <img
+                src={avatarPreview || user.avatar}
+                alt="Avatar"
+                style={{ width: 96, height: 96, borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--border)', display: 'block' }}
+              />
+            ) : (
+              <div style={{ width: 96, height: 96, borderRadius: '50%', background: 'var(--surface-2)', border: '3px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                {/* Person silhouette */}
+                <svg viewBox="0 0 96 96" width="96" height="96" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="48" cy="36" r="18" fill="var(--text-muted)" />
+                  <path d="M12 88c0-19.882 16.118-36 36-36s36 16.118 36 36" fill="var(--text-muted)" />
+                </svg>
+              </div>
+            )}
+            {/* Hover overlay */}
+            <div style={{
+              position: 'absolute', inset: 0, borderRadius: '50%',
+              background: uploadingAvatar ? 'rgba(0,0,0,0.45)' : 'rgba(0,0,0,0)',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3,
+              transition: 'background 0.18s',
+              color: '#fff',
+            }}
+              className="avatar-edit-overlay"
+            >
+              {uploadingAvatar ? (
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.04em' }}>Uploading…</span>
+              ) : (
+                <>
+                  {/* <Upload style={{ width: 16, height: 16 }} />
+                  <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.04em' }}>CHANGE</span> */}
+                </>
+              )}
+            </div>
+          </div>
+          <input ref={avatarInputRef} type="file" accept="image/*" hidden onChange={handleAvatarChange} />
           <h2 style={{ fontSize: 17, fontWeight: 700 }}>{user?.name}</h2>
           <p className="muted" style={{ fontSize: 12.5 }}>{roleLabel}</p>
           <p className="faint" style={{ fontSize: 12, marginTop: 4 }}>{user?.email}</p>

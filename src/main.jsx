@@ -5,6 +5,7 @@ import App from './App.jsx';
 import { ThemeProvider } from './context/ThemeContext.jsx';
 import { ToastProvider } from './context/ToastContext.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
+import { RefreshProvider } from './context/RefreshContext.jsx';
 import './styles/index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -13,7 +14,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <ToastProvider>
         <BrowserRouter basename="/admin">
           <AuthProvider>
-            <App />
+            <RefreshProvider>
+              <App />
+            </RefreshProvider>
           </AuthProvider>
         </BrowserRouter>
       </ToastProvider>

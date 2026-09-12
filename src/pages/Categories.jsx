@@ -7,6 +7,7 @@ import { Plus, Edit2, Trash2, Tag } from '../components/ui/Icons.jsx';
 import { taxonomyApi } from '../api/taxonomy.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
+import { useAutoRefresh } from '../context/RefreshContext.jsx';
 
 const emptyForm = { name: '', slug: '', status: 'active', sortOrder: 0 };
 const messageOf = (error) => error?.message || 'Something went wrong. Please try again.';
@@ -43,6 +44,7 @@ export default function Categories() {
   }, []);
 
   useEffect(() => { loadCategories(); }, [loadCategories]);
+  useAutoRefresh(loadCategories);
 
   const openAdd = () => { setEditing(null); setForm(emptyForm); setErrors({}); setModalOpen(true); };
   const openEdit = (category) => {
@@ -110,11 +112,11 @@ export default function Categories() {
           : loadError ? <div className="empty-state"><div className="t">Unable to load categories</div><div>{loadError}</div><button className="btn btn-secondary" onClick={loadCategories}>Retry</button></div>
             : categories.length === 0 ? <EmptyState icon={Tag} title="No categories yet" message="Create your first category to organize news." /> : (
               <div className="table-scroll"><table className="data-table">
-                <thead><tr><th>Category</th><th>Sub-categories</th><th>Articles</th><th>Status</th>{(canEdit || canDelete) && <th style={{ textAlign: 'right' }}>Actions</th>}</tr></thead>
+                <thead><tr><th>Category</th>{/*<th>Sub-categories</th>*/}<th>Articles</th><th>Status</th>{(canEdit || canDelete) && <th style={{ textAlign: 'right' }}>Actions</th>}</tr></thead>
                 <tbody>{categories.map((category) => (
                   <tr key={category.id}>
                     <td><div style={{ fontWeight: 700 }}>{category.name}</div><div className="faint" style={{ fontSize: 11.5 }}>/{category.slug}</div></td>
-                    <td><div className="chip-row">{subcategoryNames(category).length ? subcategoryNames(category).map((name) => <span key={name} className="pill pill-scheduled" style={{ textTransform: 'none' }}>{name}</span>) : <span className="faint">—</span>}</div></td>
+                    {/*<td><div className="chip-row">{subcategoryNames(category).length ? subcategoryNames(category).map((name) => <span key={name} className="pill pill-scheduled" style={{ textTransform: 'none' }}>{name}</span>) : <span className="faint">—</span>}</div></td>*/}
                     <td className="mono">{category.articleCount ?? 0}</td>
                     <td>{canEdit ? <label className="switch"><input type="checkbox" checked={category.status === 'active'} onChange={() => toggleStatus(category)} aria-label={`Toggle ${category.name} status`} /><span className="slider" /></label> : <span className={`pill pill-${category.status}`}>{category.status}</span>}</td>
                     {(canEdit || canDelete) && <td><div className="action-cell" style={{ justifyContent: 'flex-end' }}>{canEdit && <button className="action-btn" onClick={() => openEdit(category)} aria-label={`Edit ${category.name}`}><Edit2 /></button>}{canDelete && <button className="action-btn danger" onClick={() => setDeleteTarget(category)} aria-label={`Delete ${category.name}`}><Trash2 /></button>}</div></td>}

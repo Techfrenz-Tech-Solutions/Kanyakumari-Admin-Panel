@@ -7,6 +7,7 @@ import { Plus, Edit2, Trash2, Users, Mail, MapPin, FileText } from '../component
 import { reportersApi } from '../api/reporters.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
+import { useAutoRefresh } from '../context/RefreshContext.jsx';
 
 const emptyForm = { name: '', email: '', phone: '', location: '', designation: 'Reporter', bio: '', status: 'active' };
 const messageOf = (error) => error?.message || 'Something went wrong. Please try again.';
@@ -36,6 +37,7 @@ export default function Reporters() {
     finally { setLoading(false); }
   }, []);
   useEffect(() => { loadReporters(); }, [loadReporters]);
+  useAutoRefresh(loadReporters);
 
   const openAdd = () => { setEditing(null); setForm(emptyForm); setErrors({}); setModalOpen(true); };
   const openEdit = (reporter) => { setEditing(reporter); setForm({ ...emptyForm, ...reporter }); setErrors({}); setModalOpen(true); };

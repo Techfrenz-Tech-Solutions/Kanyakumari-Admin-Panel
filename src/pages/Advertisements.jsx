@@ -3,13 +3,14 @@ import { PageHead } from '../components/ui/PageHead.jsx';
 import { EmptyState } from '../components/ui/Badges.jsx';
 import Modal from '../components/ui/Modal.jsx';
 import ConfirmModal from '../components/ui/ConfirmModal.jsx';
-import { Plus, Edit2, Trash2, Megaphone, Upload } from '../components/ui/Icons.jsx';
+import { Plus, Edit2, Trash2, Megaphone, Upload, Video, X } from '../components/ui/Icons.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { adsApi } from '../api/ads.js';
 import { mediaApi } from '../api/media.js';
+import { useAutoRefresh } from '../context/RefreshContext.jsx';
 
 const POSITIONS = ['Header Banner', 'Sidebar', 'In-Article', 'Footer Banner', 'Popup'];
-const emptyForm = { title: '', image: '', imageId: null, images: [], position: POSITIONS[0], linkUrl: '', startDate: '', endDate: '', status: 'active' };
+const emptyForm = { title: '', image: '', imageId: null, images: [], videoUrl: '', videoId: null, position: POSITIONS[0], linkUrl: '', startDate: '', endDate: '', status: 'active' };
 const messageOf = (error) => error?.message || 'Something went wrong. Please try again.';
 
 export default function Advertisements() {
@@ -23,8 +24,10 @@ export default function Advertisements() {
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const fileRef = useRef(null);
+  const videoRef = useRef(null);
 
   const loadAds = useCallback(async () => {
     setLoading(true);
@@ -40,6 +43,7 @@ export default function Advertisements() {
   }, []);
 
   useEffect(() => { loadAds(); }, [loadAds]);
+  useAutoRefresh(loadAds);
 
   const openAdd = () => { setEditing(null); setForm(emptyForm); setErrors({}); setModalOpen(true); };
   const openEdit = (ad) => { setEditing(ad); setForm({ ...emptyForm, ...ad, images: ad.image ? [{ id: ad.imageId, url: ad.image, name: ad.title }] : [] }); setErrors({}); setModalOpen(true); };
@@ -69,8 +73,23 @@ export default function Advertisements() {
     }
   };
 
-  const submit = async () => {
-    const errs = {};
+  const handleVideo = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setUploadingVideo(true);
+    try {
+      const media = await mediaApi.upload(file, 'video');
+      setForm((current) => ({ ...current, videoUrl: media.url, videoId: media.id }));
+      toast.success('Video uploaded', file.name);
+    } catch (error) {
+      toast.error('Video upload failed', messageOf(error));
+    } finally {
+      setUploadingVideo(false);
+    }
+  };
+
+  const submit = async () => {    const errs = {};
     if (!form.title.trim()) errs.title = 'Title is required.';
     if (!editing && form.images.length === 0) errs.image = 'Upload at least one advertisement image.';
     if (editing && !form.imageId) errs.image = 'Upload an advertisement image.';
@@ -175,7 +194,7 @@ export default function Advertisements() {
         title={editing ? 'Edit Advertisement' : 'Add Advertisement'}
         footer={<>
           <button className="btn btn-secondary" disabled={submitting} onClick={() => setModalOpen(false)}>Cancel</button>
-          <button className="btn btn-primary" disabled={submitting || uploading} onClick={submit}>{submitting ? 'Saving…' : editing ? 'Save Changes' : 'Create Advertisement'}</button>
+          <button className="btn btn-primary" disabled={submitting || uploading || uploadingVideo} onClick={submit}>{submitting ? 'Saving…' : editing ? 'Save Changes' : 'Create Advertisement'}</button>
         </>}
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -206,6 +225,42 @@ export default function Advertisements() {
             </div>
             <input ref={fileRef} type="file" accept="image/*" multiple={!editing} hidden onChange={handleImage} />
             {errors.image && <div className="field-error">{errors.image}</div>}
+          </div>
+
+          {/* Video Upload */}
+          <div className="field">
+            <label>Advertisement Video <span style={{ color: 'var(--text-faint)', fontWeight: 400 }}>(optional)</span></label>
+            {form.videoUrl ? (
+              <div style={{ position: 'relative', borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--surface-2)' }}>
+                <video
+                  src={form.videoUrl}
+                  controls
+                  style={{ width: '100%', maxHeight: 180, display: 'block', objectFit: 'cover' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, videoUrl: '', videoId: null }))}
+                  style={{
+                    position: 'absolute', top: 6, right: 6,
+                    background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: 6,
+                    color: '#fff', width: 26, height: 26, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                  aria-label="Remove video"
+                >
+                  <X style={{ width: 14, height: 14 }} />
+                </button>
+              </div>
+            ) : (
+              <div className="dropzone" onClick={() => videoRef.current?.click()} style={{ borderColor: 'var(--blue-500)', opacity: uploadingVideo ? 0.6 : 1 }}>
+                <Video style={{ width: 22, height: 22, color: 'var(--blue-500)' }} />
+                <div style={{ fontWeight: 600, fontSize: 13 }}>
+                  {uploadingVideo ? 'Uploading video…' : 'Click to upload a video creative'}
+                </div>
+                <div style={{ fontSize: 11.5, color: 'var(--text-faint)', marginTop: 2 }}>MP4, WebM or MOV</div>
+              </div>
+            )}
+            <input ref={videoRef} type="file" accept="video/*" hidden onChange={handleVideo} />
           </div>
 
           <div className="field">

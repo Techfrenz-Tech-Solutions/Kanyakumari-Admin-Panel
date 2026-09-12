@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PageHead } from '../components/ui/PageHead.jsx';
 import { StatusPill, BreakingTag, EmptyState } from '../components/ui/Badges.jsx';
@@ -9,6 +9,7 @@ import { Plus, Search, Edit2, Trash2, Newspaper } from '../components/ui/Icons.j
 import { articlesApi } from '../api/articles.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
+import { useAutoRefresh } from '../context/RefreshContext.jsx';
 
 const TABS = [
   { key: 'all', label: 'All News' }, { key: 'published', label: 'Published' },
@@ -38,7 +39,7 @@ export default function NewsList({ fixedStatus = null }) {
   const [rejectTarget, setRejectTarget] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
 
-  const loadArticles = () => {
+  const loadArticles = useCallback(() => {
     const controller = new AbortController();
     setLoading(true); setError('');
     const status = !['all', 'breaking'].includes(activeTab) ? activeTab : undefined;
@@ -47,12 +48,13 @@ export default function NewsList({ fixedStatus = null }) {
       .catch((err) => { if (err.code !== 'REQUEST_ABORTED') setError(err.message); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return controller;
-  };
+  }, [activeTab, categoryFilter, page, query, sortBy]);
 
   useEffect(() => {
     const controller = loadArticles();
     return () => controller.abort();
-  }, [activeTab, categoryFilter, page, query, sortBy]);
+  }, [loadArticles]);
+  useAutoRefresh(loadArticles);
 
   useEffect(() => {
     const controller = new AbortController();

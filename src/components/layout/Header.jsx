@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Search, Sun, Moon, Menu, ChevronDown, User, Settings, LogOut, Plus, ExternalLink } from '../ui/Icons.jsx';
+import { Search, Sun, Moon, Menu, ChevronDown, User, Settings, LogOut, Plus, ExternalLink, RefreshCw } from '../ui/Icons.jsx';
 import { useTheme } from '../../context/ThemeContext.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { useRefresh } from '../../context/RefreshContext.jsx';
 
 const ACCENT_OPTIONS = [
   { key: 'red',  label: 'Red',       color: '#c81e1e' },
@@ -26,6 +27,7 @@ const BREADCRUMB_MAP = {
   '/media': 'Media Library',
   '/advertisements': 'Advertisements',
   '/users-roles': 'Users & Roles',
+  '/contact-us': 'Contact Us',
   '/settings': 'Settings',
   '/profile': 'My Profile',
 };
@@ -33,15 +35,19 @@ const BREADCRUMB_MAP = {
 export default function Header({ onMenuClick }) {
   const { theme, toggleTheme, accent, switchAccent } = useTheme();
   const { user, logout, hasPermission } = useAuth();
+  const { enabled, toggle, interval, intervals, changeInterval, countdown, refreshNow } = useRefresh();
   const navigate = useNavigate();
   const location = useLocation();
   const [profileOpen, setProfileOpen] = useState(false);
+  const [refreshMenuOpen, setRefreshMenuOpen] = useState(false);
   const [searchVal, setSearchVal] = useState('');
   const profileRef = useRef(null);
+  const refreshRef = useRef(null);
 
   useEffect(() => {
     const onClick = (e) => {
       if (profileRef.current && !profileRef.current.contains(e.target)) setProfileOpen(false);
+      if (refreshRef.current && !refreshRef.current.contains(e.target)) setRefreshMenuOpen(false);
     };
     document.addEventListener('mousedown', onClick);
     return () => document.removeEventListener('mousedown', onClick);
@@ -110,11 +116,11 @@ export default function Header({ onMenuClick }) {
 
       <div className="topbar-right">
         {/* Quick Add */}
-        {hasPermission('news.create') && (
+        {/*hasPermission('news.create') && (
           <button className="btn btn-primary btn-sm desktop-only" onClick={() => navigate('/news/add')} style={{ gap: 5 }}>
             <Plus style={{ width: 14, height: 14 }} /> Quick Add
           </button>
-        )}
+        )*/}
 
         {/* Preview site */}
         <span className="icon-btn desktop-only" title="Preview website" onClick={() => window.open('/', '_blank')}>
@@ -122,9 +128,49 @@ export default function Header({ onMenuClick }) {
         </span>
 
         {/* Theme toggle */}
-        <span className="icon-btn" onClick={toggleTheme} title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}>
+        {/*<span className="icon-btn" onClick={toggleTheme} title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}>
           {theme === 'light' ? <Moon style={{ width: 16, height: 16 }} /> : <Sun style={{ width: 16, height: 16 }} />}
-        </span>
+        </span>*/}
+
+        {/* Auto-refresh */}
+        <div className="icon-btn-wrap" ref={refreshRef}>
+          <div
+            className={`refresh-btn ${enabled ? 'active' : ''}`}
+            onClick={() => setRefreshMenuOpen((v) => !v)}
+            title={enabled ? `Auto-refresh: ${countdown}s` : 'Auto-refresh off'}
+          >
+            <RefreshCw style={{ width: 15, height: 15, transition: 'transform 0.4s', transform: enabled ? `rotate(${(1 - countdown / interval) * 360}deg)` : 'none' }} />
+            {enabled && <span className="refresh-countdown">{countdown}s</span>}
+          </div>
+          {refreshMenuOpen && (
+            <div className="dropdown-panel refresh-panel">
+              <div className="dd-head" style={{ paddingBottom: 8 }}>
+                <span style={{ fontWeight: 700, fontSize: 13 }}>Auto Refresh</span>
+                <label className="switch" style={{ marginLeft: 'auto' }}>
+                  <input type="checkbox" checked={enabled} onChange={toggle} />
+                  <span className="slider" />
+                </label>
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', padding: '0 14px 8px' }}>Interval</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '0 14px 10px' }}>
+                {intervals.map((s) => (
+                  <button
+                    key={s}
+                    className={`btn btn-sm ${interval === s ? 'btn-primary' : 'btn-ghost'}`}
+                    style={{ minWidth: 52 }}
+                    onClick={() => { changeInterval(s); setRefreshMenuOpen(false); }}
+                  >
+                    {s < 60 ? `${s}s` : `${s / 60}m`}
+                  </button>
+                ))}
+              </div>
+              <div className="dd-sep" />
+              <div className="dd-item" onClick={() => { refreshNow(); setRefreshMenuOpen(false); }}>
+                <RefreshCw style={{ width: 14, height: 14 }} /> Refresh Now
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Profile */}
         <div className="icon-btn-wrap" ref={profileRef}>
@@ -132,7 +178,7 @@ export default function Header({ onMenuClick }) {
             <div className="avatar">{initials}</div>
             <div className="desktop-only">
               <div className="name">{user?.name}</div>
-              <div className="role">{roleLabel}</div>
+              {roleLabel && roleLabel !== user?.name && <div className="role">{roleLabel}</div>}
             </div>
             <ChevronDown style={{ width: 14, height: 14 }} className="desktop-only" />
           </div>
