@@ -98,7 +98,7 @@ export default function App() {
         <Route path="advertisements" element={protectedPage('ads.view', <Advertisements />)} />
         <Route path="jobs" element={protectedPage('ads.view', <Jobs />)} />
         <Route path="tourist-info" element={protectedPage('ads.view', <TouristInfo />)} />
-        <Route path="contact-us" element={protectedPage('ads.view', <ContactUs />)} />
+        <Route path="contact-us" element={protectedPage('settings.view', <ContactUs />)} />
         <Route path="users-roles" element={protectedPage('users.view', <UsersRoles />)} />
         {/* Insights & Config */}
         <Route path="settings" element={protectedPage('settings.view', <Settings />)} />

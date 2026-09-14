@@ -1,10 +1,14 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { PageHead } from '../components/ui/PageHead.jsx';
 import { Save, Mail, Phone, MapPin, Globe, Link2 } from '../components/ui/Icons.jsx';
-import { loadData, saveData } from '../utils/storage.js';
+import { settingsApi, normalizeContactInfo, buildContactInfoPayload } from '../api/settings.js';
+import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 
-const DEFAULT_CONTACT = {
+// UI-only defaults for the 13-field office/contact form. The Backend is the
+// authoritative store (PUT /api/admin/settings -> contactInfo); browser-local
+// `contact_info` persistence is no longer used (see api/settings.js D19 note).
+const DEFAULT_CONTACT_INFO = {
   officeName: '',
   address: '',
   city: '',
@@ -20,11 +24,56 @@ const DEFAULT_CONTACT = {
   workingHours: 'Mon – Sat: 9:00 AM – 6:00 PM',
 };
 
+// Mirrors the backend googleMapsEmbedUrl rule (supporting.js):
+// https + google.com host + /maps/ path.
+function isGoogleMapsEmbed(value) {
+  try {
+    const u = new URL(value);
+    if (u.protocol !== 'https:') return false;
+    const host = u.hostname.toLowerCase();
+    if (host !== 'google.com' && !host.endsWith('.google.com')) return false;
+    return u.pathname.startsWith('/maps/');
+  } catch {
+    return false;
+  }
+}
+
+function isUrl(value) {
+  try {
+    const u = new URL(value);
+    return u.protocol === 'http:' || u.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 export default function ContactUs() {
   const toast = useToast();
-  const [form, setForm] = useState(() => loadData('contact_info', DEFAULT_CONTACT));
+  const { hasPermission } = useAuth();
+  const canEdit = hasPermission('settings.edit');
+  const [form, setForm] = useState(DEFAULT_CONTACT_INFO);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setLoadError('');
+    try {
+      const data = await settingsApi.get();
+      setForm(normalizeContactInfo(data?.contactInfo));
+      if (import.meta.env?.DEV && window.localStorage.getItem('dw_admin_contact_info')) {
+        console.info('[ContactUs] ignoring stale browser-local "contact_info" — Backend is authoritative.');
+      }
+    } catch (error) {
+      setLoadError(error?.message || 'Unable to load contact settings.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
 
@@ -35,6 +84,9 @@ export default function ContactUs() {
     if (!form.phone.trim()) e.phone = 'Phone number is required.';
     if (!form.email.trim()) e.email = 'Email address is required.';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = 'Enter a valid email address.';
+    if (form.supportEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.supportEmail)) e.supportEmail = 'Enter a valid email address.';
+    if (form.website.trim() && !isUrl(form.website)) e.website = 'Enter a valid URL (https://…).';
+    if (form.mapEmbedUrl.trim() && !isGoogleMapsEmbed(form.mapEmbedUrl)) e.mapEmbedUrl = 'Must be a Google Maps embed URL (https://…google.com/maps/…).';
     return e;
   };
 
@@ -43,27 +95,60 @@ export default function ContactUs() {
     setErrors(e);
     if (Object.keys(e).length) return;
     setSaving(true);
-    // Simulate async save (swap for a real API call when backend is ready)
-    await new Promise((r) => setTimeout(r, 400));
-    saveData('contact_info', form);
-    setSaving(false);
-    toast.success('Contact info saved', 'The details are now live on the website.');
+    try {
+      // Partial update: only the contactInfo block is sent (spec §14).
+      await settingsApi.update({ contactInfo: buildContactInfoPayload(form) });
+      setSaving(false);
+      toast.success('Contact info saved', 'The details are now live on the website.');
+    } catch (error) {
+      setSaving(false);
+      // Keep the unsaved form values; map backend 400 details onto fields.
+      if (error?.status === 400 && Array.isArray(error.details)) {
+        const fieldOf = (path) => String(path).replace(/^contactInfo\./, '').split('.').pop();
+        let shown = false;
+        setErrors((prev) => {
+          const next = { ...prev };
+          for (const detail of error.details) {
+            const field = fieldOf(detail.path);
+            if (detail.path.startsWith('contactInfo.')) {
+              next[field] = detail.message;
+              shown = true;
+            }
+          }
+          return shown ? next : prev;
+        });
+        if (shown) return;
+      }
+      const message = error?.status === 403
+        ? 'Your account cannot edit site settings (settings.edit required).'
+        : (error?.message || 'Something went wrong. Please try again.');
+      toast.error('Could not save contact info', message);
+    }
   };
+
+  const disabled = !canEdit || saving;
 
   return (
     <div>
       <PageHead
         eyebrow="Manage"
         title="Contact Us"
-        desc="Update the contact information displayed on the website."
-        actions={
+        desc={canEdit
+          ? 'Update the contact information displayed on the website.'
+          : 'View the contact information displayed on the website (read-only).'}
+        actions={canEdit ? (
           <button className="btn btn-primary" onClick={handleSubmit} disabled={saving}>
             <Save style={{ width: 15, height: 15 }} />
             {saving ? 'Saving…' : 'Save & Publish'}
           </button>
-        }
+        ) : null}
       />
 
+      {loading ? (
+        <div className="card"><div className="empty-state"><div className="t">Loading contact settings…</div></div></div>
+      ) : loadError ? (
+        <div className="card"><div className="empty-state"><div className="t">Unable to load contact settings</div><div>{loadError}</div><button className="btn btn-secondary" onClick={load}>Retry</button></div></div>
+      ) : (
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
 
         {/* Office Details */}
@@ -79,6 +164,7 @@ export default function ContactUs() {
               placeholder="e.g. Kanyakumari Today"
               value={form.officeName}
               onChange={(e) => set('officeName', e.target.value)}
+              disabled={disabled}
             />
             {errors.officeName && <div className="field-error">{errors.officeName}</div>}
           </div>
@@ -92,6 +178,7 @@ export default function ContactUs() {
               value={form.address}
               onChange={(e) => set('address', e.target.value)}
               style={{ resize: 'vertical' }}
+              disabled={disabled}
             />
             {errors.address && <div className="field-error">{errors.address}</div>}
           </div>
@@ -99,22 +186,22 @@ export default function ContactUs() {
           <div className="grid-2">
             <div className="field">
               <label>City</label>
-              <input className="input" placeholder="Kanyakumari" value={form.city} onChange={(e) => set('city', e.target.value)} />
+              <input className="input" placeholder="Kanyakumari" value={form.city} onChange={(e) => set('city', e.target.value)} disabled={disabled} />
             </div>
             <div className="field">
               <label>State</label>
-              <input className="input" placeholder="Tamil Nadu" value={form.state} onChange={(e) => set('state', e.target.value)} />
+              <input className="input" placeholder="Tamil Nadu" value={form.state} onChange={(e) => set('state', e.target.value)} disabled={disabled} />
             </div>
           </div>
 
           <div className="field">
             <label>Pin Code</label>
-            <input className="input" placeholder="629001" value={form.pincode} onChange={(e) => set('pincode', e.target.value)} style={{ maxWidth: 180 }} />
+            <input className="input" placeholder="629001" value={form.pincode} onChange={(e) => set('pincode', e.target.value)} style={{ maxWidth: 180 }} disabled={disabled} />
           </div>
 
           <div className="field">
             <label>Working Hours</label>
-            <input className="input" value={form.workingHours} onChange={(e) => set('workingHours', e.target.value)} />
+            <input className="input" value={form.workingHours} onChange={(e) => set('workingHours', e.target.value)} disabled={disabled} />
           </div>
         </div>
 
@@ -131,18 +218,19 @@ export default function ContactUs() {
               placeholder="+91 94XXX XXXXX"
               value={form.phone}
               onChange={(e) => set('phone', e.target.value)}
+              disabled={disabled}
             />
             {errors.phone && <div className="field-error">{errors.phone}</div>}
           </div>
 
           <div className="field">
             <label>Alternate Phone</label>
-            <input className="input" placeholder="+91 98XXX XXXXX" value={form.altPhone} onChange={(e) => set('altPhone', e.target.value)} />
+            <input className="input" placeholder="+91 98XXX XXXXX" value={form.altPhone} onChange={(e) => set('altPhone', e.target.value)} disabled={disabled} />
           </div>
 
           <div className="field">
             <label>WhatsApp Number</label>
-            <input className="input" placeholder="+91 94XXX XXXXX" value={form.whatsapp} onChange={(e) => set('whatsapp', e.target.value)} />
+            <input className="input" placeholder="+91 94XXX XXXXX" value={form.whatsapp} onChange={(e) => set('whatsapp', e.target.value)} disabled={disabled} />
           </div>
 
           <div className="field">
@@ -153,18 +241,34 @@ export default function ContactUs() {
               placeholder="info@kanyakumartoday.com"
               value={form.email}
               onChange={(e) => set('email', e.target.value)}
+              disabled={disabled}
             />
             {errors.email && <div className="field-error">{errors.email}</div>}
           </div>
 
           <div className="field">
             <label>Support / Feedback Email</label>
-            <input className="input" type="email" placeholder="support@kanyakumartoday.com" value={form.supportEmail} onChange={(e) => set('supportEmail', e.target.value)} />
+            <input
+              className={`input ${errors.supportEmail ? 'error' : ''}`}
+              type="email"
+              placeholder="support@kanyakumartoday.com"
+              value={form.supportEmail}
+              onChange={(e) => set('supportEmail', e.target.value)}
+              disabled={disabled}
+            />
+            {errors.supportEmail && <div className="field-error">{errors.supportEmail}</div>}
           </div>
 
           <div className="field">
             <label>Website URL</label>
-            <input className="input" placeholder="https://kanyakumartoday.com" value={form.website} onChange={(e) => set('website', e.target.value)} />
+            <input
+              className={`input ${errors.website ? 'error' : ''}`}
+              placeholder="https://kanyakumartoday.com"
+              value={form.website}
+              onChange={(e) => set('website', e.target.value)}
+              disabled={disabled}
+            />
+            {errors.website && <div className="field-error">{errors.website}</div>}
           </div>
         </div>
 
@@ -176,11 +280,13 @@ export default function ContactUs() {
           <div className="field">
             <label>Google Maps Embed URL</label>
             <input
-              className="input"
+              className={`input ${errors.mapEmbedUrl ? 'error' : ''}`}
               placeholder="https://www.google.com/maps/embed?pb=..."
               value={form.mapEmbedUrl}
               onChange={(e) => set('mapEmbedUrl', e.target.value)}
+              disabled={disabled}
             />
+            {errors.mapEmbedUrl && <div className="field-error">{errors.mapEmbedUrl}</div>}
             <div className="field-hint" style={{ fontSize: 11.5, color: 'var(--text-faint)', marginTop: 4 }}>
               Go to Google Maps → Share → Embed a map → copy the <code>src</code> URL from the iframe code.
             </div>
@@ -225,6 +331,7 @@ export default function ContactUs() {
         </div>
 
       </div>
+      )}
     </div>
   );
 }

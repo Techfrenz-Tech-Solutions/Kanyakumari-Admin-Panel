@@ -65,7 +65,7 @@ export const SECTIONS = [
       { to: '/advertisements', label: 'Advertisements', icon: Megaphone, permission: 'ads.view' },
       { to: '/jobs', label: 'Jobs', icon: Briefcase, permission: 'ads.view' },
       { to: '/tourist-info', label: 'Tourist Info', icon: MapPin, permission: 'ads.view' },
-      { to: '/contact-us', label: 'Contact Us', icon: Phone, permission: 'ads.view' },
+      { to: '/contact-us', label: 'Contact Us', icon: Phone, permission: 'settings.view' },
       { to: '/users-roles', label: 'Users & Roles', icon: ShieldCheck, permission: 'users.view' },
     ],
   },
