@@ -19,6 +19,7 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     host: '0.0.0.0',
+    open: '/admin/',
     proxy: {
       '/api': devProxy,
       '/uploads': devProxy,
