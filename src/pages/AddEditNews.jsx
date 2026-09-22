@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useBlocker } from 'react-router-dom';
 import { PageHead } from '../components/ui/PageHead.jsx';
 import { Upload, X, Save, Send, Calendar, FlameIcon, Star, Video } from '../components/ui/Icons.jsx';
 import { articlesApi, mapArticlePayload } from '../api/articles.js';
@@ -51,6 +51,12 @@ export default function AddEditNews() {
   const [uploading, setUploading] = useState(false);
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const [draftRestored, setDraftRestored] = useState(() => Boolean(loadDraft(id)));
+  const [isDirty, setIsDirty] = useState(false);
+
+  // Block navigation when form has unsaved changes
+  const blocker = useBlocker(({ currentLocation, nextLocation }) =>
+    isDirty && currentLocation.pathname !== nextLocation.pathname
+  );
 
   // Auto-save form to sessionStorage whenever it changes
   useEffect(() => {
@@ -77,7 +83,10 @@ export default function AddEditNews() {
     return () => controller.abort();
   }, [hasPermission, id, isEdit]);
 
-  const setField = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+  const setField = (key, value) => {
+    setIsDirty(true);
+    setForm((current) => ({ ...current, [key]: value }));
+  };
   const visibleSubcategories = references.subcategories.filter((item) => !form.categoryId || String(item.parentCategoryId ?? item.categoryId ?? item.category?.id) === String(form.categoryId));
   const validate = () => {
     const next = {};
@@ -95,6 +104,7 @@ export default function AddEditNews() {
     setUploading(true);
     try {
       const media = await articlesApi.uploadMedia(file);
+      setIsDirty(true);
       setForm((current) => ({ ...current, featuredImageId: media.id, image: media.url }));
       setReferences((current) => ({ ...current, media: [media, ...current.media.filter((item) => item.id !== media.id)] }));
       toast.success('Image uploaded', file.name);
@@ -111,6 +121,7 @@ export default function AddEditNews() {
       formData.append('file', file);
       formData.append('kind', 'video');
       const media = await articlesApi.uploadMedia(formData);
+      setIsDirty(true);
       setForm((current) => ({ ...current, videoUrl: media.url }));
       toast.success('Video uploaded', file.name);
     } catch (err) { toast.error('Video upload failed', err.message); }
@@ -149,6 +160,7 @@ export default function AddEditNews() {
       }
       const finalStatus = isEdit && targetStatus === 'draft' ? form.status : targetStatus;
       clearDraft(id); // clear saved draft after successful save
+      setIsDirty(false);
       toast.success(isEdit ? 'Article updated' : 'Article created', `Server confirmed ${finalStatus} status.`);
       navigate('/news');
     } catch (err) { toast.error('Unable to save article', err.message); }
@@ -162,6 +174,62 @@ export default function AddEditNews() {
   const textarea = (field, label, rows, tamil = false) => <div className="field"><label>{label}</label><textarea className={`input ${errors[field] ? 'error' : ''}`} lang={tamil ? 'ta' : undefined} rows={rows} value={form[field] || ''} onChange={(e) => setField(field, e.target.value)} />{errors[field] && <div className="field-error">{errors[field]}</div>}</div>;
 
   return <div>
+    {/* ── Unsaved changes confirmation popup ───────────────────── */}
+    {blocker.state === 'blocked' && (
+      <div style={{
+        position: 'fixed', inset: 0, background: 'rgba(13,14,19,0.6)',
+        backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center',
+        justifyContent: 'center', zIndex: 200, padding: 20,
+        animation: 'fade-in 0.15s ease',
+      }}>
+        <div style={{
+          background: 'var(--surface)', borderRadius: 'var(--radius-lg)',
+          boxShadow: 'var(--shadow-lg)', width: '100%', maxWidth: 420,
+          padding: '32px 28px', display: 'flex', flexDirection: 'column',
+          gap: 16, animation: 'modal-in 0.16s ease',
+        }}>
+          {/* Icon */}
+          <div style={{
+            width: 48, height: 48, borderRadius: '50%',
+            background: 'var(--accent-100)', color: 'var(--accent-600)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 22,
+          }}>
+            ✋
+          </div>
+          {/* Text */}
+          <div>
+            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 18, marginBottom: 8 }}>
+              Unsaved Changes
+            </div>
+            <div style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+              You have unsaved changes on this page. If you leave now, your work will be lost.
+            </div>
+          </div>
+          {/* Buttons */}
+          <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+            <button
+              className="btn btn-primary"
+              style={{ flex: 1 }}
+              onClick={() => blocker.reset()}
+            >
+              Stay on Page
+            </button>
+            <button
+              className="btn btn-secondary"
+              style={{ flex: 1 }}
+              onClick={() => {
+                clearDraft(id);
+                setIsDirty(false);
+                blocker.proceed();
+              }}
+            >
+              Discard & Leave
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     <PageHead eyebrow={isEdit ? 'Edit Article' : 'New Article'} title={isEdit ? 'Edit News' : 'Add News'} desc="Create bilingual stories and use the server-backed editorial workflow." />
     {draftRestored && (
       <div style={{

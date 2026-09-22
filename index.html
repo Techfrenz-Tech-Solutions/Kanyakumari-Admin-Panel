@@ -18,6 +18,16 @@
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,900;1,9..144,600&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   </head>
   <body>
+    <!-- Block right-click on images and videos -->
+    <script>
+      document.addEventListener('contextmenu', function(e) {
+        var t = e.target;
+        if (t.tagName === 'IMG' || t.tagName === 'VIDEO' || t.tagName === 'SOURCE') {
+          e.preventDefault();
+          return false;
+        }
+      }, true);
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

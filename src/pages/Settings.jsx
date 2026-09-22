@@ -6,7 +6,7 @@ import { mediaApi } from '../api/media.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 
-const TABS = ['General', 'Contact', 'Social Media', 'Header & Footer'];
+const TABS = ['General'/*, 'Contact', 'Social Media', 'Header & Footer'*/];
 
 // Display labels for the social inputs (kept minimal — same card layout as
 // before, three inputs added for the newly backend-supported networks).
@@ -184,7 +184,7 @@ export default function Settings() {
           </div>
         )}
 
-        {tab === 'Contact' && (
+        {/*tab === 'Contact' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <div className="field">
               <label><Mail style={{ width: 13, height: 13, marginRight: 4, verticalAlign: -2 }} />Contact Email</label>
@@ -202,9 +202,9 @@ export default function Settings() {
               Full office contact details (address, phones, map) are managed on the Contact Us page.
             </div>
           </div>
-        )}
+        )*/}
 
-        {tab === 'Social Media' && (
+        {/*tab === 'Social Media' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             {SOCIAL_KEYS.map((k) => (
               <div className="field" key={k}>
@@ -213,9 +213,9 @@ export default function Settings() {
               </div>
             ))}
           </div>
-        )}
+        )*/}
 
-        {tab === 'Header & Footer' && (
+        {/*tab === 'Header & Footer' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
             <div className="field">
               <label><Globe style={{ width: 13, height: 13, marginRight: 4, verticalAlign: -2 }} />Header Announcement</label>
@@ -226,7 +226,7 @@ export default function Settings() {
               <textarea className="input" rows={3} value={settings.footerText} onChange={(e) => set('footerText', e.target.value)} disabled={!canEdit} />
             </div>
           </div>
-        )}
+        )*/}
       </div>
     </div>
   );

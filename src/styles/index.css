@@ -1181,3 +1181,12 @@ table.data-table tbody tr:last-child td { border-bottom: none; }
   .main-col { margin-left: 0 !important; }
   .page-content { padding: 0 !important; }
 }
+
+/* ---------- Image & video protection ---------- */
+img, video {
+  -webkit-user-drag: none;
+  user-drag: none;
+  -webkit-user-select: none;
+  user-select: none;
+  pointer-events: auto; /* keep clicks working for UI controls */
+}
