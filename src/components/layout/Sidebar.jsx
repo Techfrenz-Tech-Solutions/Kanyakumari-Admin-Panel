@@ -22,7 +22,7 @@ export const SECTIONS = [
     key: 'news',
     defaultOpen: true,
     items: [
-      { to: '/news', label: 'All News', icon: List, permission: 'news.view' },
+      { to: '/news', label: 'All News', icon: List, end: true, permission: 'news.view' },
       { to: '/news/add', label: 'Add News', icon: PenSquare, permission: 'news.create' },
       { to: '/news/published', label: 'Published', icon: CheckCircle, permission: 'news.view' },
       { to: '/news/scheduled', label: 'Scheduled', icon: Clock, permission: 'news.view' },

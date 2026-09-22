@@ -15,6 +15,24 @@ const emptyForm = {
 };
 const itemsOf = (value) => Array.isArray(value) ? value : value?.items || value?.categories || value?.subcategories || value?.reporters || value?.areas || [];
 
+// sessionStorage key — separate key for "new" vs each edit id
+const draftKey = (id) => id ? `news_draft_edit_${id}` : 'news_draft_new';
+
+function loadDraft(id) {
+  try {
+    const raw = sessionStorage.getItem(draftKey(id));
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function saveDraft(id, form) {
+  try { sessionStorage.setItem(draftKey(id), JSON.stringify(form)); } catch { /* quota exceeded — ignore */ }
+}
+
+function clearDraft(id) {
+  try { sessionStorage.removeItem(draftKey(id)); } catch { /* ignore */ }
+}
+
 export default function AddEditNews() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -23,15 +41,21 @@ export default function AddEditNews() {
   const { hasPermission } = useAuth();
   const fileRef = useRef(null);
   const videoRef = useRef(null);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState(() => loadDraft(id) || emptyForm);
   const [references, setReferences] = useState({ categories: [], subcategories: [], reporters: [], media: [] });
   const [tagInput, setTagInput] = useState('');
   const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(isEdit);
+  const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [draftRestored, setDraftRestored] = useState(() => Boolean(loadDraft(id)));
+
+  // Auto-save form to sessionStorage whenever it changes
+  useEffect(() => {
+    saveDraft(id, form);
+  }, [form, id]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -44,7 +68,10 @@ export default function AddEditNews() {
     ];
     Promise.all(requests).then(([categories, subcategories, reporters, media, article]) => {
       setReferences({ categories: itemsOf(categories), subcategories: itemsOf(subcategories), reporters: itemsOf(reporters), media: itemsOf(media) });
-      if (article) setForm({ ...emptyForm, ...article, categoryId: article.categoryId || '', subCategoryId: article.subCategoryId || '', authorId: article.authorId || '' });
+      // For edit mode: only apply server data if no draft was restored
+      if (article && !loadDraft(id)) {
+        setForm({ ...emptyForm, ...article, categoryId: article.categoryId || '', subCategoryId: article.subCategoryId || '', authorId: article.authorId || '' });
+      }
     }).catch((err) => { if (err.code !== 'REQUEST_ABORTED') setLoadError(err.message); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
@@ -121,6 +148,7 @@ export default function AddEditNews() {
         if (targetStatus === 'published' && form.status !== 'published') await articlesApi.changeStatus(id, 'publish-now');
       }
       const finalStatus = isEdit && targetStatus === 'draft' ? form.status : targetStatus;
+      clearDraft(id); // clear saved draft after successful save
       toast.success(isEdit ? 'Article updated' : 'Article created', `Server confirmed ${finalStatus} status.`);
       navigate('/news');
     } catch (err) { toast.error('Unable to save article', err.message); }
@@ -135,6 +163,28 @@ export default function AddEditNews() {
 
   return <div>
     <PageHead eyebrow={isEdit ? 'Edit Article' : 'New Article'} title={isEdit ? 'Edit News' : 'Add News'} desc="Create bilingual stories and use the server-backed editorial workflow." />
+    {draftRestored && (
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        background: 'var(--surface-2)', border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-sm)', padding: '10px 14px',
+        marginBottom: 16, fontSize: 13, gap: 12,
+      }}>
+        <span>📝 Your unsaved changes have been restored.</span>
+        <button
+          type="button"
+          className="btn btn-secondary"
+          style={{ fontSize: 12, padding: '4px 10px' }}
+          onClick={() => {
+            clearDraft(id);
+            setForm(emptyForm);
+            setDraftRestored(false);
+          }}
+        >
+          Discard & Start Fresh
+        </button>
+      </div>
+    )}
     <div className="two-col">
       <div className="card card-pad" style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
         {input('title', 'News Title *')}{input('titleTA', 'Tamil Title', true)}

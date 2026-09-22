@@ -227,9 +227,28 @@ a { color: inherit; text-decoration: none; }
 button { font-family: inherit; }
 ::selection { background: var(--selection-bg); color: var(--selection-color); }
 
+/* Show focus ring only for keyboard navigation, never after a mouse click */
 *:focus-visible {
   outline: 2px solid var(--accent-500);
   outline-offset: 2px;
+}
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Buttons: remove all focus outline on mouse click */
+.btn:focus:not(:focus-visible),
+.icon-btn:focus:not(:focus-visible),
+.action-btn:focus:not(:focus-visible),
+.page-btn:focus:not(:focus-visible),
+.nav-item:focus:not(:focus-visible),
+.collapse-btn:focus:not(:focus-visible),
+.profile-btn:focus:not(:focus-visible),
+.filter-chip:focus:not(:focus-visible),
+.settings-tab:focus:not(:focus-visible),
+.dd-item:focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -481,6 +500,7 @@ div:hover > .avatar-edit-overlay { opacity: 1; background: rgba(0,0,0,0.45) !imp
 }
 .btn svg { width: 16px; height: 16px; }
 .btn:active { transform: translateY(1px); }
+.btn:active:not(:focus-visible) { outline: none; box-shadow: none; }
 .btn-primary { background: var(--btn-primary-bg); color: var(--btn-primary-color); font-weight: 700; border-color: var(--btn-primary-border); }
 .btn-primary:hover { filter: brightness(1.07); }
 .btn-secondary { background: var(--surface); color: var(--text); border-color: var(--border-strong); }
