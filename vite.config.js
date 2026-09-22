@@ -13,13 +13,12 @@ const devProxy = {
 }
 
 export default defineConfig({
-  base: '/admin/',
   plugins: [react()],
   server: {
     port: 5173,
     strictPort: true,
     host: '0.0.0.0',
-    open: '/admin/',
+    open: '/',
     proxy: {
       '/api': devProxy,
       '/uploads': devProxy,

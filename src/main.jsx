@@ -12,7 +12,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ThemeProvider>
       <ToastProvider>
-        <BrowserRouter basename="/admin">
+        <BrowserRouter>
           <AuthProvider>
             <RefreshProvider>
               <App />
