@@ -21,7 +21,17 @@ export default function Jobs() {
   const persist = (list) => { setJobs(list); saveData('jobs', list); };
 
   const openAdd = () => { setEditing(null); setForm(EMPTY_FORM); setErrors({}); setModalOpen(true); };
-  const openEdit = (job) => { setEditing(job); setForm({ ...EMPTY_FORM, ...job }); setErrors({}); setModalOpen(true); };
+  const openEdit = (job) => {
+    setEditing(job);
+    setForm({
+      title: job.title ?? '',
+      description: job.description ?? '',
+      url: job.url ?? '',
+      status: job.status ?? 'active',
+    });
+    setErrors({});
+    setModalOpen(true);
+  };
 
   const validate = () => {
     const errs = {};

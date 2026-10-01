@@ -40,7 +40,20 @@ export default function Reporters() {
   useAutoRefresh(loadReporters);
 
   const openAdd = () => { setEditing(null); setForm(emptyForm); setErrors({}); setModalOpen(true); };
-  const openEdit = (reporter) => { setEditing(reporter); setForm({ ...emptyForm, ...reporter }); setErrors({}); setModalOpen(true); };
+  const openEdit = (reporter) => {
+    setEditing(reporter);
+    setForm({ ...emptyForm, ...reporter,
+      name: reporter.name ?? '',
+      email: reporter.email ?? '',
+      phone: reporter.phone ?? '',
+      location: reporter.location ?? '',
+      designation: reporter.designation ?? 'Reporter',
+      bio: reporter.bio ?? '',
+      status: reporter.status ?? 'active',
+    });
+    setErrors({});
+    setModalOpen(true);
+  };
   const submit = async () => {
     const nextErrors = {};
     if (!form.name.trim()) nextErrors.name = 'Name is required.';

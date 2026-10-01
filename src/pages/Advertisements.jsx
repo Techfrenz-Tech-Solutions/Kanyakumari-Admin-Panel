@@ -46,7 +46,24 @@ export default function Advertisements() {
   useAutoRefresh(loadAds);
 
   const openAdd = () => { setEditing(null); setForm(emptyForm); setErrors({}); setModalOpen(true); };
-  const openEdit = (ad) => { setEditing(ad); setForm({ ...emptyForm, ...ad, images: ad.image ? [{ id: ad.imageId, url: ad.image, name: ad.title }] : [] }); setErrors({}); setModalOpen(true); };
+  const openEdit = (ad) => {
+    setEditing(ad);
+    setForm({
+      title: ad.title ?? '',
+      image: ad.image ?? '',
+      imageId: ad.imageId ?? null,
+      images: ad.image ? [{ id: ad.imageId, url: ad.image, name: ad.title }] : [],
+      videoUrl: ad.videoUrl ?? '',
+      videoId: ad.videoId ?? null,
+      position: ad.position ?? POSITIONS[0],
+      linkUrl: ad.linkUrl ?? '',
+      startDate: ad.startDate ?? '',
+      endDate: ad.endDate ?? '',
+      status: ad.status ?? 'active',
+    });
+    setErrors({});
+    setModalOpen(true);
+  };
 
   const handleImage = async (event) => {
     const files = Array.from(event.target.files || []);

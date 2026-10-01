@@ -28,7 +28,15 @@ export default function Editors() {
   const openAdd = () => { setEditing(null); setForm(emptyForm); setErrors({}); setModalOpen(true); };
   const openEdit = (e) => {
     setEditing(e);
-    setForm({ name: e.name, email: e.email, phone: e.phone || '', role: e.role, department: e.department || 'News Desk', permissions: e.permissions || ['edit'], status: e.status });
+    setForm({
+      name: e.name ?? '',
+      email: e.email ?? '',
+      phone: e.phone ?? '',
+      role: e.role ?? 'Associate Editor',
+      department: e.department ?? 'News Desk',
+      permissions: e.permissions ?? ['edit'],
+      status: e.status ?? 'active',
+    });
     setErrors({});
     setModalOpen(true);
   };

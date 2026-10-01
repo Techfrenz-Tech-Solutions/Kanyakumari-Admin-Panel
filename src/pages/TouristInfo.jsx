@@ -24,7 +24,18 @@ export default function TouristInfo() {
   const persist = (list) => { setPlaces(list); saveData('tourist_info', list); };
 
   const openAdd = () => { setEditing(null); setForm(EMPTY_FORM); setErrors({}); setModalOpen(true); };
-  const openEdit = (place) => { setEditing(place); setForm({ ...EMPTY_FORM, ...place }); setErrors({}); setModalOpen(true); };
+  const openEdit = (place) => {
+    setEditing(place);
+    setForm({
+      name: place.name ?? '',
+      description: place.description ?? '',
+      photo: place.photo ?? '',
+      mapLink: place.mapLink ?? '',
+      status: place.status ?? 'active',
+    });
+    setErrors({});
+    setModalOpen(true);
+  };
 
   const handlePhoto = async (e) => {
     const file = e.target.files?.[0];

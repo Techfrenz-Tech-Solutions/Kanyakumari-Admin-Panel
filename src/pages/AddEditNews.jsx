@@ -76,7 +76,28 @@ export default function AddEditNews() {
       setReferences({ categories: itemsOf(categories), subcategories: itemsOf(subcategories), reporters: itemsOf(reporters), media: itemsOf(media) });
       // For edit mode: only apply server data if no draft was restored
       if (article && !loadDraft(id)) {
-        setForm({ ...emptyForm, ...article, categoryId: article.categoryId || '', subCategoryId: article.subCategoryId || '', authorId: article.authorId || '' });
+        setForm({
+          ...emptyForm,
+          ...article,
+          title: article.title ?? '',
+          titleTA: article.titleTA ?? '',
+          shortDescription: article.shortDescription ?? '',
+          excerptTA: article.excerptTA ?? '',
+          content: article.content ?? '',
+          contentTA: article.contentTA ?? '',
+          categoryId: article.categoryId ?? '',
+          subCategoryId: article.subCategoryId ?? '',
+          authorId: article.authorId ?? '',
+          location: article.location ?? '',
+          image: article.image ?? '',
+          videoUrl: article.videoUrl ?? '',
+          tags: Array.isArray(article.tags) ? article.tags : [],
+          publishDate: article.publishDate ?? today(),
+          publishTime: article.publishTime ?? '09:00',
+          isBreaking: article.isBreaking ?? false,
+          isFeatured: article.isFeatured ?? false,
+          status: article.status ?? 'draft',
+        });
       }
     }).catch((err) => { if (err.code !== 'REQUEST_ABORTED') setLoadError(err.message); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });

@@ -24,7 +24,14 @@ export default function Authors() {
   const openAdd = () => { setEditing(null); setForm(emptyForm); setErrors({}); setModalOpen(true); };
   const openEdit = (a) => {
     setEditing(a);
-    setForm({ name: a.name, email: a.email, bio: a.bio, specialization: a.specialization, twitterHandle: a.social?.twitter || '', status: a.status });
+    setForm({
+      name: a.name ?? '',
+      email: a.email ?? '',
+      bio: a.bio ?? '',
+      specialization: a.specialization ?? '',
+      twitterHandle: a.social?.twitter ?? '',
+      status: a.status ?? 'active',
+    });
     setErrors({});
     setModalOpen(true);
   };
