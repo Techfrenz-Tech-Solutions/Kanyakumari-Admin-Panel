@@ -6,68 +6,45 @@ import { describe, it } from 'node:test';
 const root = process.cwd();
 const src = (path) => readFileSync(join(root, path), 'utf8');
 
-describe('ContactUs is backend-authoritative (localStorage removed)', () => {
+describe('ContactUs manages backend contact submissions', () => {
   const contactUs = src('src/pages/ContactUs.jsx');
+  const contactApi = src('src/api/contact.js');
 
-  it('loads settings through the settings API on mount', () => {
-    assert.match(contactUs, /settingsApi\.get\(\)/);
-    assert.match(contactUs, /normalizeContactInfo\(data\?\.contactInfo\)/);
-    assert.match(contactUs, /useEffect\(\(\) => \{ load\(\); \}, \[load\]\)/);
+  it('loads contact submissions on mount and during auto-refresh', () => {
+    assert.match(contactUs, /contactApi\.list\(\{ page: 1, limit: 100 \}\)/);
+    assert.match(contactUs, /setEnquiries\(data\.items \|\| \[\]\)/);
+    assert.match(contactUs, /useEffect\(\(\) => \{ loadEnquiries\(\); \}, \[loadEnquiries\]\)/);
+    assert.match(contactUs, /useAutoRefresh\(loadEnquiries\)/);
   });
 
-  it('saves only the contactInfo block (partial update semantics)', () => {
-    assert.match(contactUs, /settingsApi\.update\(\{ contactInfo: buildContactInfoPayload\(form\) \}\)/);
+  it('updates status and deletes submissions through the contact API', () => {
+    assert.match(contactUs, /contactApi\.updateStatus\(id, status\)/);
+    assert.match(contactUs, /contactApi\.remove\(id\)/);
+    assert.match(contactUs, /setEnquiries\(\(prev\) => prev\.map/);
+    assert.match(contactUs, /setEnquiries\(\(prev\) => prev\.filter/);
   });
 
-  it('no longer reads or writes the contact_info localStorage key', () => {
-    assert.doesNotMatch(contactUs, /loadData\(/);
-    assert.doesNotMatch(contactUs, /saveData\(/);
-    // The only remaining mention of the legacy key is the dev-only notice.
-    const legacyMentions = contactUs.split('dw_admin_contact_info').length - 1;
-    assert.equal(legacyMentions, 1, 'legacy key may only appear in the dev console notice');
-    assert.doesNotMatch(contactUs, /localStorage\.setItem\(.*dw_admin_contact_info/);
-    assert.doesNotMatch(contactUs, /localStorage\.removeItem/);
-  });
-
-  it('has a loading gate, load-error retry, and save state', () => {
-    assert.match(contactUs, /setLoading\(true\)/);
+  it('falls back to clearly identified sample data when loading fails', () => {
     assert.match(contactUs, /setLoadError\(error\?\.message/);
-    assert.match(contactUs, /Loading contact settings/);
-    assert.match(contactUs, /Unable to load contact settings/);
-    assert.match(contactUs, /onClick=\{load\}>\s*Retry\s*</);
-    assert.match(contactUs, /setSaving\(true\)/);
-    assert.match(contactUs, /setSaving\(false\)/);
+    assert.match(contactUs, /contactApi\.mockEnquiries\(\)/);
+    assert.match(contactUs, /setMockMode\(true\)/);
+    assert.match(contactUs, /Showing sample enquiries/);
+    assert.match(contactUs, /onClick=\{loadEnquiries\}/);
   });
 
-  it('validates email, website URL, and Google Maps embed client-side', () => {
-    assert.match(contactUs, /u\.protocol !== 'https:'/);
-    assert.match(contactUs, /host !== 'google\.com' && !host\.endsWith\('\.google\.com'\)/);
-    assert.match(contactUs, new RegExp("u\\.pathname\\.startsWith\\('/maps/'\\)"));
-    assert.match(contactUs, /u\.hostname\.toLowerCase\(\)/);
-    assert.match(contactUs, /Enter a valid email address/);
-    assert.match(contactUs, /Enter a valid URL/);
+  it('uses the backend contact-submission endpoints', () => {
+    assert.match(contactApi, /\/api\/admin\/contact-submissions/);
+    assert.match(contactApi, /\/status`/);
+    assert.match(contactApi, /method: 'PUT'/);
+    assert.match(contactApi, /method: 'DELETE'/);
   });
 
-  it('maps backend 400 field details onto form fields and keeps unsaved values', () => {
-    assert.match(contactUs, /error\?\.status === 400 && Array\.isArray\(error\.details\)/);
-    assert.match(contactUs, /startsWith\('contactInfo\.'\)/);
-    assert.match(contactUs, /detail\.message/);
-  });
-
-  it('gates save and inputs on settings.edit (view-only stays read-only)', () => {
-    assert.match(contactUs, /hasPermission\('settings\.edit'\)/);
-    assert.match(contactUs, /actions=\{canEdit \?/);
-    assert.match(contactUs, /disabled=\{disabled\}/);
-    assert.match(contactUs, /const disabled = !canEdit \|\| saving;/);
-  });
-
-  it('renders the map iframe preview from the live form value', () => {
-    assert.match(contactUs, /\{form\.mapEmbedUrl && \(/);
-    assert.match(contactUs, /<iframe[\s\S]*?src=\{form\.mapEmbedUrl\}/);
-  });
-
-  it('does not call useAutoRefresh (editable form, no destructive polling)', () => {
-    assert.doesNotMatch(contactUs, /useAutoRefresh/);
+  it('renders loading, filtering, and submission detail states', () => {
+    assert.match(contactUs, /Loading enquiries/);
+    assert.match(contactUs, /enqFilter/);
+    assert.match(contactUs, /enqSearch/);
+    assert.match(contactUs, /selectedEnq/);
+    assert.match(contactUs, /Mark as Replied/);
   });
 });
 
@@ -140,11 +117,11 @@ describe('auto-refresh regression check', () => {
   it('list pages still opt into global auto-refresh; form pages do not', () => {
     for (const file of [
       'src/pages/NewsList.jsx', 'src/pages/Categories.jsx', 'src/pages/Reporters.jsx',
-      'src/pages/Advertisements.jsx', 'src/pages/UsersRoles.jsx',
+      'src/pages/Advertisements.jsx', 'src/pages/UsersRoles.jsx', 'src/pages/ContactUs.jsx',
     ]) {
       assert.match(src(file), /useAutoRefresh\(/, `${file} must keep useAutoRefresh`);
     }
-    for (const file of ['src/pages/ContactUs.jsx', 'src/pages/Settings.jsx']) {
+    for (const file of ['src/pages/Settings.jsx']) {
       assert.doesNotMatch(src(file), /useAutoRefresh\(/, `${file} must NOT auto-overwrite an editable form`);
     }
   });
