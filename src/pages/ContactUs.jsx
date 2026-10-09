@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { PageHead } from '../components/ui/PageHead.jsx';
 import { Mail, Phone, Inbox, Trash2, CheckCheck, Search, X, Clock } from '../components/ui/Icons.jsx';
+import { contactApi } from '../api/contact.js';
 import { useToast } from '../context/ToastContext.jsx';
+import { useAutoRefresh } from '../context/RefreshContext.jsx';
 
 /* ── Dummy enquiries ─────────────────────────────────────────────── */
 const DUMMY_ENQUIRIES = [
@@ -74,28 +76,69 @@ const STATUS_STYLES = {
 export default function ContactUs() {
   const toast = useToast();
 
-  const [enquiries, setEnquiries] = useState(DUMMY_ENQUIRIES);
+  const [enquiries, setEnquiries] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [mockMode, setMockMode] = useState(false);
   const [enqFilter, setEnqFilter] = useState('all');
   const [enqSearch, setEnqSearch] = useState('');
   const [selectedEnq, setSelectedEnq] = useState(null);
 
+  const loadEnquiries = useCallback(async () => {
+    setLoading(true);
+    setLoadError('');
+    try {
+      const data = await contactApi.list({ page: 1, limit: 100 });
+      setEnquiries(data.items || []);
+      setMockMode(false);
+    } catch (error) {
+      setLoadError(error?.message || 'Unable to load enquiries from the server.');
+      setEnquiries(contactApi.mockEnquiries());
+      setMockMode(true);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadEnquiries(); }, [loadEnquiries]);
+  useAutoRefresh(loadEnquiries);
+
   /* ── Actions ───────────────────────────────────────────────────── */
+  const markStatus = async (id, status, { silent = false } = {}) => {
+    const previous = enquiries;
+    setEnquiries((prev) => prev.map((e) => e.id === id ? { ...e, status } : e));
+    if (selectedEnq?.id === id) setSelectedEnq((e) => ({ ...e, status }));
+    try {
+      await contactApi.updateStatus(id, status);
+      if (!silent && status === 'replied') toast.success('Marked as replied', 'Enquiry status updated.');
+    } catch (error) {
+      setEnquiries(previous);
+      if (selectedEnq?.id === id) setSelectedEnq(previous.find((e) => e.id === id) || null);
+      toast.error('Unable to update enquiry', error?.message || 'Please try again.');
+    }
+  };
   const markRead = (id) => {
-    setEnquiries((prev) => prev.map((e) => e.id === id ? { ...e, status: 'read' } : e));
-    if (selectedEnq?.id === id) setSelectedEnq((e) => ({ ...e, status: 'read' }));
+    markStatus(id, 'read', { silent: true });
   };
   const markReplied = (id) => {
-    setEnquiries((prev) => prev.map((e) => e.id === id ? { ...e, status: 'replied' } : e));
-    if (selectedEnq?.id === id) setSelectedEnq((e) => ({ ...e, status: 'replied' }));
-    toast.success('Marked as replied', 'Enquiry status updated.');
+    markStatus(id, 'replied');
   };
-  const deleteEnq = (id) => {
+  const deleteEnq = async (id) => {
+    const previous = enquiries;
     setEnquiries((prev) => prev.filter((e) => e.id !== id));
     if (selectedEnq?.id === id) setSelectedEnq(null);
-    toast.success('Deleted', 'Enquiry removed.');
+    try {
+      await contactApi.remove(id);
+      toast.success('Deleted', 'Enquiry removed.');
+    } catch (error) {
+      setEnquiries(previous);
+      setSelectedEnq(previous.find((e) => e.id === id) || null);
+      toast.error('Unable to delete enquiry', error?.message || 'Please try again.');
+    }
   };
   const openEnq = (enq) => {
-    setSelectedEnq(enq);
+    const next = enq.status === 'unread' ? { ...enq, status: 'read' } : enq;
+    setSelectedEnq(next);
     if (enq.status === 'unread') markRead(enq.id);
   };
 
@@ -122,6 +165,14 @@ export default function ContactUs() {
         title="Contact Us"
         desc="View and manage messages submitted by website visitors."
       />
+
+      {mockMode && (
+        <div className="card card-pad" style={{ marginBottom: 14 }}>
+          <div className="field-error" role="alert">{loadError}</div>
+          <div className="faint" style={{ fontSize: 12, marginTop: 4 }}>Showing sample enquiries so the page controls can still be tested.</div>
+          <button className="btn btn-secondary btn-sm" onClick={loadEnquiries} style={{ marginTop: 10 }}>Retry Server</button>
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: selectedEnq ? '1fr 420px' : '1fr', gap: 16, alignItems: 'start' }}>
 
@@ -160,7 +211,13 @@ export default function ContactUs() {
           </div>
 
           {/* Rows */}
-          {filteredEnq.length === 0 ? (
+          {loading ? (
+            <div className="empty-state">
+              <Inbox style={{ width: 40, height: 40 }} />
+              <div className="t">Loading enquiries...</div>
+              <div>Fetching website messages from the server.</div>
+            </div>
+          ) : filteredEnq.length === 0 ? (
             <div className="empty-state">
               <Inbox style={{ width: 40, height: 40 }} />
               <div className="t">No enquiries found</div>

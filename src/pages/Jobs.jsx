@@ -1,24 +1,49 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { PageHead } from '../components/ui/PageHead.jsx';
 import { EmptyState } from '../components/ui/Badges.jsx';
 import Modal from '../components/ui/Modal.jsx';
 import ConfirmModal from '../components/ui/ConfirmModal.jsx';
 import { Plus, Edit2, Trash2, Briefcase, ExternalLink } from '../components/ui/Icons.jsx';
-import { loadData, saveData } from '../utils/storage.js';
+import { supportingApi } from '../api/supporting.js';
 import { useToast } from '../context/ToastContext.jsx';
+import { useAutoRefresh } from '../context/RefreshContext.jsx';
 
-const EMPTY_FORM = { title: '', description: '', url: '', status: 'active' };
+const EMPTY_FORM = { title: '', org: '', location: '', type: 'private', lastDate: '', applyUrl: '', status: 'active' };
+const messageOf = (error) => error?.message || 'Something went wrong. Please try again.';
+const jobTypes = [
+  { value: 'private', label: 'Private' },
+  { value: 'govt', label: 'Government' },
+  { value: 'teaching', label: 'Teaching' },
+  { value: 'bank', label: 'Bank' },
+];
 
 export default function Jobs() {
   const toast = useToast();
-  const [jobs, setJobs] = useState(() => loadData('jobs', []));
+  const [jobs, setJobs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [errors, setErrors] = useState({});
   const [deleteTarget, setDeleteTarget] = useState(null);
 
-  const persist = (list) => { setJobs(list); saveData('jobs', list); };
+  const loadJobs = useCallback(async () => {
+    setLoading(true);
+    setLoadError('');
+    try {
+      const data = await supportingApi.jobs.list({ limit: 100 });
+      setJobs(data.items || []);
+    } catch (error) {
+      setLoadError(messageOf(error));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadJobs(); }, [loadJobs]);
+  useAutoRefresh(loadJobs);
 
   const openAdd = () => { setEditing(null); setForm(EMPTY_FORM); setErrors({}); setModalOpen(true); };
   const openEdit = (job) => {
@@ -36,35 +61,50 @@ export default function Jobs() {
   const validate = () => {
     const errs = {};
     if (!form.title.trim()) errs.title = 'Job title is required.';
-    if (!form.description.trim()) errs.description = 'Description is required.';
-    if (form.url.trim() && !/^https?:\/\/.+/.test(form.url.trim())) errs.url = 'Enter a valid URL starting with http:// or https://';
+    if (!form.lastDate) errs.lastDate = 'Last date is required.';
+    if (form.applyUrl.trim() && !/^https?:\/\/.+/.test(form.applyUrl.trim())) errs.applyUrl = 'Enter a valid URL starting with http:// or https://';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
-  const submit = () => {
+  const submit = async () => {
     if (!validate()) return;
-    if (editing) {
-      const updated = jobs.map((j) => (j.id === editing.id ? { ...j, ...form, title: form.title.trim(), description: form.description.trim(), url: form.url.trim() } : j));
-      persist(updated);
-      toast.success('Job updated', `"${form.title.trim()}" has been saved.`);
-    } else {
-      const newJob = { id: Date.now(), title: form.title.trim(), description: form.description.trim(), url: form.url.trim(), status: form.status, createdAt: new Date().toISOString().slice(0, 10) };
-      persist([newJob, ...jobs]);
-      toast.success('Job added', `"${form.title.trim()}" was posted successfully.`);
+    setSubmitting(true);
+    try {
+      if (editing) await supportingApi.jobs.update(editing.id, form);
+      else await supportingApi.jobs.create(form);
+      await loadJobs();
+      setModalOpen(false);
+      toast.success(editing ? 'Job updated' : 'Job added', `"${form.title.trim()}" has been saved.`);
+    } catch (error) {
+      setErrors({ submit: messageOf(error) });
+    } finally {
+      setSubmitting(false);
     }
-    setModalOpen(false);
   };
 
-  const confirmDelete = () => {
-    persist(jobs.filter((j) => j.id !== deleteTarget.id));
-    toast.success('Job deleted', `"${deleteTarget.title}" was removed.`);
-    setDeleteTarget(null);
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await supportingApi.jobs.remove(deleteTarget.id);
+      await loadJobs();
+      toast.success('Job deleted', `"${deleteTarget.title}" was removed.`);
+    } catch (error) {
+      toast.error('Unable to delete job', messageOf(error));
+    } finally {
+      setDeleteTarget(null);
+    }
   };
 
-  const toggleStatus = (job) => {
-    persist(jobs.map((j) => (j.id === job.id ? { ...j, status: j.status === 'active' ? 'inactive' : 'active' } : j)));
-    toast.info('Status updated', `"${job.title}" is now ${job.status === 'active' ? 'inactive' : 'active'}.`);
+  const toggleStatus = async (job) => {
+    const nextStatus = job.status === 'active' ? 'inactive' : 'active';
+    try {
+      await supportingApi.jobs.update(job.id, { status: nextStatus });
+      await loadJobs();
+      toast.info('Status updated', `"${job.title}" is now ${nextStatus}.`);
+    } catch (error) {
+      toast.error('Unable to update status', messageOf(error));
+    }
   };
 
   return (
@@ -80,7 +120,11 @@ export default function Jobs() {
         }
       />
 
-      {jobs.length === 0 ? (
+      {loading ? (
+        <div className="card"><div className="empty-state"><div className="t">Loading jobs...</div></div></div>
+      ) : loadError ? (
+        <div className="card"><div className="empty-state"><div className="t">Unable to load jobs</div><div>{loadError}</div><button className="btn btn-secondary" onClick={loadJobs}>Retry</button></div></div>
+      ) : jobs.length === 0 ? (
         <div className="card">
           <EmptyState icon={Briefcase} title="No jobs posted yet" message="Click 'Add Job' to post your first opening." />
         </div>
@@ -91,10 +135,12 @@ export default function Jobs() {
               <thead>
                 <tr>
                   <th>Job Title</th>
-                  <th>Description</th>
+                  <th>Organisation</th>
+                  <th>Type</th>
+                  <th>Location</th>
                   <th>Link</th>
                   <th>Status</th>
-                  <th>Posted</th>
+                  <th>Last Date</th>
                   <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
@@ -104,14 +150,12 @@ export default function Jobs() {
                     <td>
                       <div style={{ fontWeight: 700, fontSize: 13.5 }}>{job.title}</div>
                     </td>
-                    <td style={{ maxWidth: 320 }}>
-                      <div style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--text-muted)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                        {job.description.length > 120 ? job.description.slice(0, 120) + '…' : job.description}
-                      </div>
-                    </td>
+                    <td className="faint" style={{ fontSize: 12 }}>{job.org || '—'}</td>
+                    <td><span className="pill pill-scheduled">{jobTypes.find((type) => type.value === job.type)?.label || job.type}</span></td>
+                    <td className="faint" style={{ fontSize: 12 }}>{job.location || '—'}</td>
                     <td>
-                      {job.url ? (
-                        <a href={job.url} target="_blank" rel="noreferrer" className="action-btn" title={job.url} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
+                      {job.applyUrl ? (
+                        <a href={job.applyUrl} target="_blank" rel="noreferrer" className="action-btn" title={job.applyUrl} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
                           <ExternalLink style={{ width: 13, height: 13 }} /> View
                         </a>
                       ) : (
@@ -124,7 +168,7 @@ export default function Jobs() {
                         <span className="slider" />
                       </label>
                     </td>
-                    <td className="faint" style={{ fontSize: 12 }}>{job.createdAt}</td>
+                    <td className="faint" style={{ fontSize: 12 }}>{job.lastDate}</td>
                     <td>
                       <div className="action-cell" style={{ justifyContent: 'flex-end' }}>
                         <button className="action-btn" title="Edit" onClick={() => openEdit(job)}><Edit2 /></button>
@@ -142,12 +186,12 @@ export default function Jobs() {
       {/* Add / Edit Modal */}
       <Modal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={() => !submitting && setModalOpen(false)}
         title={editing ? 'Edit Job' : 'Add Job'}
         footer={
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-            <button className="btn btn-secondary" onClick={() => setModalOpen(false)}>Cancel</button>
-            <button className="btn btn-primary" onClick={submit}>{editing ? 'Save Changes' : 'Add Job'}</button>
+            <button className="btn btn-secondary" disabled={submitting} onClick={() => setModalOpen(false)}>Cancel</button>
+            <button className="btn btn-primary" disabled={submitting} onClick={submit}>{submitting ? 'Saving...' : editing ? 'Save Changes' : 'Add Job'}</button>
           </div>
         }
       >
@@ -164,31 +208,42 @@ export default function Jobs() {
             {errors.title && <div className="field-error">{errors.title}</div>}
           </div>
 
-          {/* Description */}
-          <div className="field">
-            <label>Description <span style={{ color: 'var(--red-500)' }}>*</span></label>
-            <textarea
-              className={`input ${errors.description ? 'error' : ''}`}
-              placeholder="Describe the role, responsibilities, requirements…"
-              rows={5}
-              value={form.description}
-              onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-              style={{ resize: 'vertical' }}
-            />
-            {errors.description && <div className="field-error">{errors.description}</div>}
+          <div className="grid-2">
+            <div className="field">
+              <label>Organisation</label>
+              <input className="input" placeholder="e.g. District Collectorate" value={form.org} onChange={(e) => setForm((p) => ({ ...p, org: e.target.value }))} />
+            </div>
+            <div className="field">
+              <label>Location</label>
+              <input className="input" placeholder="e.g. Nagercoil" value={form.location} onChange={(e) => setForm((p) => ({ ...p, location: e.target.value }))} />
+            </div>
+          </div>
+
+          <div className="grid-2">
+            <div className="field">
+              <label>Type</label>
+              <select className="select" value={form.type} onChange={(e) => setForm((p) => ({ ...p, type: e.target.value }))}>
+                {jobTypes.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}
+              </select>
+            </div>
+            <div className="field">
+              <label>Last Date <span style={{ color: 'var(--red-500)' }}>*</span></label>
+              <input className={`input ${errors.lastDate ? 'error' : ''}`} type="date" value={form.lastDate} onChange={(e) => setForm((p) => ({ ...p, lastDate: e.target.value }))} />
+              {errors.lastDate && <div className="field-error">{errors.lastDate}</div>}
+            </div>
           </div>
 
           {/* URL */}
           <div className="field">
             <label>Application URL</label>
             <input
-              className={`input ${errors.url ? 'error' : ''}`}
+              className={`input ${errors.applyUrl ? 'error' : ''}`}
               placeholder="https://example.com/apply"
               type="url"
-              value={form.url}
-              onChange={(e) => setForm((p) => ({ ...p, url: e.target.value }))}
+              value={form.applyUrl}
+              onChange={(e) => setForm((p) => ({ ...p, applyUrl: e.target.value }))}
             />
-            {errors.url && <div className="field-error">{errors.url}</div>}
+            {errors.applyUrl && <div className="field-error">{errors.applyUrl}</div>}
           </div>
 
           {/* Status */}
@@ -199,6 +254,7 @@ export default function Jobs() {
               <option value="inactive">Inactive</option>
             </select>
           </div>
+          {errors.submit && <div className="field-error">{errors.submit}</div>}
         </div>
       </Modal>
 

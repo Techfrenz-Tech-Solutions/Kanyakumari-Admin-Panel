@@ -13,12 +13,19 @@ import { useAutoRefresh } from '../context/RefreshContext.jsx';
 const PAGE_SIZE = 24;
 const messageOf = (error) => error?.message || 'Something went wrong. Please try again.';
 const uploadedDate = (value) => value ? new Date(value).toLocaleDateString('en-IN', { dateStyle: 'medium' }) : '—';
+const KIND_FILTERS = [
+  { value: '', label: 'All' },
+  { value: 'image', label: 'Images' },
+  { value: 'video', label: 'Videos' },
+  { value: 'pdf', label: 'PDFs' },
+];
 
 // Detect media type from mime type
 const getMediaType = (file) => {
   if (file.type.startsWith('video/')) return 'video';
   if (file.type.startsWith('image/')) return 'image';
-  return 'document';
+  if (file.type === 'application/pdf') return 'pdf';
+  return null;
 };
 
 // Icon for media items in the grid
@@ -48,6 +55,7 @@ export default function MediaLibrary() {
   const { hasPermission } = useAuth();
   const [result, setResult] = useState({ items: [], total: 0 });
   const [query, setQuery] = useState('');
+  const [kind, setKind] = useState('');
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -63,13 +71,13 @@ export default function MediaLibrary() {
     setLoading(true);
     setLoadError('');
     try {
-      setResult(await mediaApi.list({ q: query.trim(), page, limit: PAGE_SIZE }));
+      setResult(await mediaApi.list({ q: query.trim(), kind, page, limit: PAGE_SIZE }));
     } catch (error) {
       setLoadError(messageOf(error));
     } finally {
       setLoading(false);
     }
-  }, [page, query]);
+  }, [kind, page, query]);
 
   useEffect(() => {
     const timeout = setTimeout(loadMedia, query ? 250 : 0);
@@ -81,6 +89,11 @@ export default function MediaLibrary() {
     const files = Array.from(event.target.files || []);
     event.target.value = '';
     if (!files.length || uploading) return;
+    const unsupported = files.find((file) => !getMediaType(file));
+    if (unsupported) {
+      toast.error('Unsupported file type', 'Upload images, videos, or PDFs only.');
+      return;
+    }
     setUploading(true);
     try {
       for (const file of files) await mediaApi.upload(file, getMediaType(file));
@@ -100,11 +113,11 @@ export default function MediaLibrary() {
     setDeleting(true);
     try {
       await mediaApi.remove(deleteTarget.id);
-      toast.success('Image deleted', `${deleteTarget.name} was removed from the server library.`);
+      toast.success('File deleted', `${deleteTarget.name} was removed from the server library.`);
       setDeleteTarget(null);
       await loadMedia();
     } catch (error) {
-      toast.error('Unable to delete image', messageOf(error));
+      toast.error('Unable to delete file', messageOf(error));
     } finally {
       setDeleting(false);
     }
@@ -113,17 +126,24 @@ export default function MediaLibrary() {
   const media = result.items || [];
   return (
     <div>
-      <PageHead eyebrow="Assets" title="Media Library" desc="Upload and manage server-backed images used by articles."
+      <PageHead eyebrow="Assets" title="Media Library" desc="Upload and manage server-backed images, videos, and PDFs stored in the local backend uploads folder."
         actions={canUpload ? <button className="btn btn-primary" disabled={uploading} onClick={() => fileRef.current?.click()}><Upload />{uploading ? 'Uploading…' : 'Upload Media'}</button> : null} />
-      <input ref={fileRef} type="file" accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv" multiple hidden onChange={handleUpload} />
+      <input ref={fileRef} type="file" accept="image/*,video/*,.pdf" multiple hidden onChange={handleUpload} />
 
       <div className="card card-pad" style={{ marginBottom: 16 }}>
-        <div className="table-search" style={{ maxWidth: 340 }}><Search /><input placeholder="Search media by name…" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} /></div>
+        <div className="table-toolbar" style={{ marginBottom: 0 }}>
+          <div className="table-search" style={{ maxWidth: 340 }}><Search /><input placeholder="Search media by name…" value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} /></div>
+          <div className="toolbar-filters">
+            <select className="select" value={kind} onChange={(event) => { setKind(event.target.value); setPage(1); }}>
+              {KIND_FILTERS.map((item) => <option key={item.value || 'all'} value={item.value}>{item.label}</option>)}
+            </select>
+          </div>
+        </div>
       </div>
 
       {loading ? <div className="card card-pad faint">Loading media…</div>
         : loadError ? <div className="card"><div className="empty-state"><div className="t">Unable to load media</div><div>{loadError}</div><button className="btn btn-secondary" onClick={loadMedia}>Retry</button></div></div>
-          : media.length === 0 ? <div className="card"><EmptyState icon={ImageIcon} title="No media found" message="Upload an image, video or document to get started." /></div>
+          : media.length === 0 ? <div className="card"><EmptyState icon={ImageIcon} title="No media found" message="Upload an image, video or PDF to get started." /></div>
             : <div className="media-grid">{media.map((item) => <div className="media-item" key={item.id}>
               <MediaThumb item={item} onClick={() => setPreview(item)} />
               <div className="overlay"><button className="action-btn" style={{ background: '#fff' }} onClick={() => setPreview(item)} aria-label={`Preview ${item.name}`}><Eye /></button>{canDelete && <button className="action-btn danger" style={{ background: '#fff' }} onClick={() => setDeleteTarget(item)} aria-label={`Delete ${item.name}`}><Trash2 /></button>}</div>

@@ -117,6 +117,7 @@ export function createArticlesApi(client = apiClient) {
     listReporters: (options = {}) => client.request('/api/admin/reporters?limit=100', options),
     listAreas: (options = {}) => client.request('/api/admin/areas?limit=100', options),
     listMedia: (options = {}) => client.request('/api/admin/media?kind=image&page=1&limit=100', options),
+    listVideoMedia: (options = {}) => client.request('/api/admin/media?kind=video&page=1&limit=100', options),
     uploadMedia(fileOrForm, options = {}) {
       const body = fileOrForm instanceof FormData ? fileOrForm : new FormData();
       if (!(fileOrForm instanceof FormData)) {

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -10,8 +10,8 @@ import {
   Newspaper, CheckCircle, Clock, Zap, Eye, Plus, TrendingUp,
   Users, ArrowUpRight, ArrowDownRight,
 } from '../components/ui/Icons.jsx';
-import { loadData } from '../utils/storage.js';
-import { seedNews, seedReporters, viewsTrend, categoryDistribution, weeklyPublished, trafficSources, deviceDistribution } from '../data/mockData.js';
+import { dashboardApi, dashboardRange } from '../api/dashboard.js';
+import { useAutoRefresh } from '../context/RefreshContext.jsx';
 
 const PIE_COLORS = ['#c9960c', '#2461c9', '#1a8a4a', '#b3760a', '#454b64', '#865f06', '#6b7182'];
 const DEVICE_COLORS = ['#c9960c', '#2461c9', '#1a8a4a'];
@@ -21,37 +21,54 @@ const DATE_FILTERS = ['Today', 'Yesterday', 'Last 7 Days', 'Last 30 Days'];
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const news = loadData('news', seedNews);
-  const reporters = loadData('reporters', seedReporters);
   const [dateFilter, setDateFilter] = useState('Last 7 Days');
+  const [stats, setStats] = useState({
+    total: 0, published: 0, publishedToday: 0, draft: 0, pending: 0, scheduled: 0,
+    breaking: 0, totalViews: 0, totalComments: 0, totalReporters: 0,
+    viewsInPeriod: 0, commentsInPeriod: 0, viewsTrend: [], categoryDistribution: [],
+    weeklyPublished: [], trafficSources: [], deviceDistribution: [],
+  });
+  const [recent, setRecent] = useState([]);
+  const [topArticles, setTopArticles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
-  const stats = useMemo(() => {
-    const total = news.length;
-    const published = news.filter((n) => n.status === 'published').length;
-    const publishedToday = news.filter((n) => {
-      const d = new Date(n.publishDate);
-      const today = new Date();
-      return n.status === 'published' && d.toDateString() === today.toDateString();
-    }).length;
-    const draft = news.filter((n) => n.status === 'draft').length;
-    const pending = news.filter((n) => n.status === 'pending').length;
-    const breaking = news.filter((n) => n.isBreaking).length;
-    const totalViews = news.reduce((sum, n) => sum + (n.views || 0), 0);
-    const totalReporters = reporters.length;
-    return { total, published, publishedToday, draft, pending, breaking, totalViews, totalReporters };
-  }, [news, reporters]);
+  const range = dashboardRange(dateFilter);
+  const loadDashboard = useCallback(async () => {
+    setLoading(true);
+    setLoadError('');
+    try {
+      const [nextStats, nextRecent, nextTopArticles] = await Promise.all([
+        dashboardApi.stats(range),
+        dashboardApi.recent(),
+        dashboardApi.topArticles(range),
+      ]);
+      setStats(nextStats);
+      setRecent(nextRecent);
+      setTopArticles(nextTopArticles);
+    } catch (error) {
+      setLoadError(error?.message || 'Unable to load dashboard data.');
+    } finally {
+      setLoading(false);
+    }
+  }, [range]);
 
-  const recent = useMemo(
-    () => [...news].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 7),
-    [news]
-  );
-
-  const topArticles = useMemo(
-    () => [...news].filter((n) => n.status === 'published').sort((a, b) => b.views - a.views).slice(0, 5),
-    [news]
-  );
+  useEffect(() => { loadDashboard(); }, [loadDashboard]);
+  useAutoRefresh(loadDashboard);
 
   const maxViews = topArticles[0]?.views || 1;
+  const publishingActivity = useMemo(() => {
+    const labels = stats.weeklyPublished?.length ? stats.weeklyPublished : [];
+    if (!labels.length) return [{ day: dateFilter, published: stats.publishedToday, draft: stats.draft, pending: stats.pending }];
+    return labels.map((item) => ({
+      day: item.week || item.date,
+      published: item.count || 0,
+      draft: 0,
+      pending: 0,
+    }));
+  }, [dateFilter, stats]);
+  const averageViews = Math.round(stats.totalViews / (stats.total || 1)).toLocaleString('en-IN');
+  const publishedRate = `${Math.round((stats.published / (stats.total || 1)) * 100)}%`;
 
   return (
     <div>
@@ -71,6 +88,13 @@ export default function Dashboard() {
           </div>
         }
       />
+
+      {loadError && (
+        <div className="card card-pad" style={{ marginBottom: 18 }}>
+          <div className="field-error" role="alert">{loadError}</div>
+          <button className="btn btn-secondary" onClick={loadDashboard} style={{ marginTop: 10 }}>Retry</button>
+        </div>
+      )}
 
       {/* Breaking news ticker if any */}
       {stats.breaking > 0 && (
@@ -94,12 +118,12 @@ export default function Dashboard() {
 
       {/* Stat Cards */}
       <div className="stat-grid">
-        <StatCard icon={Newspaper} tone="ink" value={stats.total.toLocaleString('en-IN')} label="Total Articles" delta="+8.2% this month" deltaUp />
-        <StatCard icon={CheckCircle} tone="green" value={stats.publishedToday} label="Published Today" delta={`${stats.published} total live`} deltaUp />
+        <StatCard icon={Newspaper} tone="ink" value={loading ? '...' : stats.total.toLocaleString('en-IN')} label="Total Articles" delta={`${stats.draft} drafts, ${stats.scheduled} scheduled`} deltaUp />
+        <StatCard icon={CheckCircle} tone="green" value={loading ? '...' : stats.publishedToday} label={dateFilter === 'Today' ? 'Published Today' : 'Published in Period'} delta={`${stats.published} total live`} deltaUp />
         <StatCard icon={Clock} tone="amber" value={stats.pending} label="Pending Approval" delta="Needs editorial action" deltaUp={false} />
         <StatCard icon={Zap} tone="red" value={stats.breaking} label="Breaking News" delta="Live on ticker" deltaUp />
         <StatCard icon={Users} tone="blue" value={stats.totalReporters} label="Total Reporters" delta="Active correspondents" deltaUp />
-        <StatCard icon={Eye} tone="green" value={stats.totalViews.toLocaleString('en-IN')} label="Total Views" delta="+12.4% vs last week" deltaUp />
+        <StatCard icon={Eye} tone="green" value={loading ? '...' : stats.totalViews.toLocaleString('en-IN')} label="Total Views" delta={`${stats.viewsInPeriod.toLocaleString('en-IN')} this period`} deltaUp />
       </div>
 
       {/* Date filter */}
@@ -163,7 +187,7 @@ export default function Dashboard() {
           </div>
           <div className="card-pad" style={{ paddingTop: 8 }}>
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={weeklyPublished} margin={{ left: -20, top: 6 }}>
+              <BarChart data={publishingActivity} margin={{ left: -20, top: 6 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                 <XAxis dataKey="day" tick={{ fontSize: 11, fill: 'var(--text-faint)' }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: 'var(--text-faint)' }} axisLine={false} tickLine={false} />
@@ -184,7 +208,9 @@ export default function Dashboard() {
             <span className="btn btn-ghost btn-sm" onClick={() => navigate('/analytics')} style={{ cursor: 'pointer' }}>Analytics →</span>
           </div>
           <div className="card-pad" style={{ paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {topArticles.map((n, i) => (
+            {topArticles.length === 0 ? (
+              <div className="faint" style={{ fontSize: 13 }}>No article views recorded for this period yet.</div>
+            ) : topArticles.map((n, i) => (
               <div key={n.id}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
                   <span style={{
@@ -211,9 +237,9 @@ export default function Dashboard() {
               <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text-faint)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Quick Stats</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 {[
-                  { label: 'Avg. Views/Article', value: Math.round(news.reduce((s, n) => s + n.views, 0) / (news.length || 1)).toLocaleString('en-IN') },
-                  { label: 'Published Rate', value: `${Math.round((stats.published / (stats.total || 1)) * 100)}%` },
-                  { label: 'Active Reporters', value: loadData('reporters', seedReporters).filter(r => r.status === 'active').length },
+                  { label: 'Avg. Views/Article', value: averageViews },
+                  { label: 'Published Rate', value: publishedRate },
+                  { label: 'Active Reporters', value: stats.totalReporters },
                 ].map((s) => (
                   <div key={s.label} style={{ background: 'var(--surface-2)', borderRadius: 8, padding: '10px 12px' }}>
                     <div style={{ fontSize: 17, fontWeight: 700, fontFamily: 'var(--font-display)' }}>{s.value}</div>
@@ -284,7 +310,11 @@ export default function Dashboard() {
             <span className="btn btn-ghost btn-sm" onClick={() => navigate('/news')} style={{ cursor: 'pointer' }}>View all →</span>
           </div>
           <div style={{ padding: '8px 0' }}>
-            {recent.map((n) => (
+            {recent.length === 0 ? (
+              <div className="card-pad faint" style={{ fontSize: 13 }}>
+                {loading ? 'Loading recent news...' : 'No articles have been added yet.'}
+              </div>
+            ) : recent.map((n) => (
               <div
                 key={n.id}
                 style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 20px', borderBottom: '1px solid var(--border)', cursor: 'pointer', transition: 'background 0.1s' }}
@@ -292,7 +322,7 @@ export default function Dashboard() {
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 onClick={() => navigate(`/news/edit/${n.id}`)}
               >
-                <img src={n.image} alt="" style={{ width: 46, height: 46, borderRadius: 8, objectFit: 'cover', flex: 'none' }} />
+                <img src={n.image || '/logo.png'} alt="" style={{ width: 46, height: 46, borderRadius: 8, objectFit: 'cover', flex: 'none' }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.title}</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 4, flexWrap: 'wrap' }}>

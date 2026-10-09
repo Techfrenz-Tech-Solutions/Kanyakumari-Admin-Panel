@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams, useBlocker } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { PageHead } from '../components/ui/PageHead.jsx';
 import { Upload, X, Save, Send, Calendar, FlameIcon, Star, Video } from '../components/ui/Icons.jsx';
 import { articlesApi, mapArticlePayload } from '../api/articles.js';
@@ -25,12 +25,29 @@ function loadDraft(id) {
   } catch { return null; }
 }
 
-function saveDraft(id, form) {
-  try { sessionStorage.setItem(draftKey(id), JSON.stringify(form)); } catch { /* quota exceeded — ignore */ }
-}
-
 function clearDraft(id) {
   try { sessionStorage.removeItem(draftKey(id)); } catch { /* ignore */ }
+}
+
+function hasMeaningfulDraft(form) {
+  if (!form || typeof form !== 'object') return false;
+  const textFields = ['title', 'titleTA', 'shortDescription', 'excerptTA', 'content', 'contentTA', 'location', 'image', 'videoUrl'];
+  if (textFields.some((field) => String(form[field] ?? '').trim())) return true;
+  if (Array.isArray(form.tags) && form.tags.some((tag) => String(tag).trim())) return true;
+  if (form.isBreaking || form.isFeatured) return true;
+  return form.status !== undefined && form.status !== null && form.status !== '' && form.status !== 'draft';
+}
+
+function loadUsableDraft(id) {
+  const draft = loadDraft(id);
+  if (!draft) return null;
+  if (hasMeaningfulDraft(draft)) return draft;
+  clearDraft(id);
+  return null;
+}
+
+function saveDraft(id, form) {
+  try { sessionStorage.setItem(draftKey(id), JSON.stringify(form)); } catch { /* quota exceeded — ignore */ }
 }
 
 export default function AddEditNews() {
@@ -41,8 +58,13 @@ export default function AddEditNews() {
   const { hasPermission } = useAuth();
   const fileRef = useRef(null);
   const videoRef = useRef(null);
-  const [form, setForm] = useState(() => loadDraft(id) || emptyForm);
-  const [references, setReferences] = useState({ categories: [], subcategories: [], reporters: [], media: [] });
+  const initialDraftRef = useRef(loadUsableDraft(id));
+  const didLoadInitialDataRef = useRef(false);
+  const loadedDraftIdRef = useRef(null);
+  const loadedFormJsonRef = useRef('');
+  const [form, setForm] = useState(() => initialDraftRef.current || emptyForm);
+  const [loadVersion, setLoadVersion] = useState(0);
+  const [references, setReferences] = useState({ categories: [], subcategories: [], reporters: [], media: [], videos: [] });
   const [tagInput, setTagInput] = useState('');
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(true);
@@ -50,33 +72,49 @@ export default function AddEditNews() {
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadingVideo, setUploadingVideo] = useState(false);
-  const [draftRestored, setDraftRestored] = useState(() => Boolean(loadDraft(id)));
+  const [draftRestored, setDraftRestored] = useState(() => Boolean(initialDraftRef.current));
   const [isDirty, setIsDirty] = useState(false);
-
-  // Block navigation when form has unsaved changes
-  const blocker = useBlocker(({ currentLocation, nextLocation }) =>
-    isDirty && currentLocation.pathname !== nextLocation.pathname
-  );
 
   // Auto-save form to sessionStorage whenever it changes
   useEffect(() => {
+    if (!didLoadInitialDataRef.current) return;
+    if (loadedDraftIdRef.current !== (id || null)) return;
+    if (JSON.stringify(form) === loadedFormJsonRef.current) return;
     saveDraft(id, form);
   }, [form, id]);
 
   useEffect(() => {
+    const warnBeforeUnload = (event) => {
+      if (!isDirty) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warnBeforeUnload);
+    return () => window.removeEventListener('beforeunload', warnBeforeUnload);
+  }, [isDirty]);
+
+  useEffect(() => {
     const controller = new AbortController();
+    const draftForRoute = loadUsableDraft(id);
+    initialDraftRef.current = draftForRoute;
+    didLoadInitialDataRef.current = false;
+    loadedDraftIdRef.current = null;
+    loadedFormJsonRef.current = JSON.stringify(draftForRoute || emptyForm);
+    setDraftRestored(Boolean(draftForRoute));
+    setForm(draftForRoute || emptyForm);
     setLoading(true); setLoadError('');
     const requests = [
       articlesApi.listCategories({ signal: controller.signal }), articlesApi.listSubcategories({ signal: controller.signal }),
       articlesApi.listReporters({ signal: controller.signal }),
       hasPermission('media.view') ? articlesApi.listMedia({ signal: controller.signal }) : Promise.resolve({ items: [] }),
+      hasPermission('media.view') ? articlesApi.listVideoMedia({ signal: controller.signal }) : Promise.resolve({ items: [] }),
       isEdit ? articlesApi.get(id, { signal: controller.signal }) : Promise.resolve(null),
     ];
-    Promise.all(requests).then(([categories, subcategories, reporters, media, article]) => {
-      setReferences({ categories: itemsOf(categories), subcategories: itemsOf(subcategories), reporters: itemsOf(reporters), media: itemsOf(media) });
-      // For edit mode: only apply server data if no draft was restored
-      if (article && !loadDraft(id)) {
-        setForm({
+    Promise.all(requests).then(([categories, subcategories, reporters, media, videos, article]) => {
+      setReferences({ categories: itemsOf(categories), subcategories: itemsOf(subcategories), reporters: itemsOf(reporters), media: itemsOf(media), videos: itemsOf(videos) });
+      // For edit mode: only keep a restored draft if it existed before this load began.
+      if (article && !draftForRoute) {
+        const articleForm = {
           ...emptyForm,
           ...article,
           title: article.title ?? '',
@@ -97,12 +135,20 @@ export default function AddEditNews() {
           isBreaking: article.isBreaking ?? false,
           isFeatured: article.isFeatured ?? false,
           status: article.status ?? 'draft',
-        });
+        };
+        loadedFormJsonRef.current = JSON.stringify(articleForm);
+        setForm(articleForm);
       }
     }).catch((err) => { if (err.code !== 'REQUEST_ABORTED') setLoadError(err.message); })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          loadedDraftIdRef.current = id || null;
+          didLoadInitialDataRef.current = true;
+          setLoading(false);
+        }
+      });
     return () => controller.abort();
-  }, [hasPermission, id, isEdit]);
+  }, [hasPermission, id, isEdit, loadVersion]);
 
   const setField = (key, value) => {
     setIsDirty(true);
@@ -144,6 +190,7 @@ export default function AddEditNews() {
       const media = await articlesApi.uploadMedia(formData);
       setIsDirty(true);
       setForm((current) => ({ ...current, videoUrl: media.url }));
+      setReferences((current) => ({ ...current, videos: [media, ...current.videos.filter((item) => item.id !== media.id)] }));
       toast.success('Video uploaded', file.name);
     } catch (err) { toast.error('Video upload failed', err.message); }
     finally { setUploadingVideo(false); }
@@ -195,62 +242,6 @@ export default function AddEditNews() {
   const textarea = (field, label, rows, tamil = false) => <div className="field"><label>{label}</label><textarea className={`input ${errors[field] ? 'error' : ''}`} lang={tamil ? 'ta' : undefined} rows={rows} value={form[field] || ''} onChange={(e) => setField(field, e.target.value)} />{errors[field] && <div className="field-error">{errors[field]}</div>}</div>;
 
   return <div>
-    {/* ── Unsaved changes confirmation popup ───────────────────── */}
-    {blocker.state === 'blocked' && (
-      <div style={{
-        position: 'fixed', inset: 0, background: 'rgba(13,14,19,0.6)',
-        backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center',
-        justifyContent: 'center', zIndex: 200, padding: 20,
-        animation: 'fade-in 0.15s ease',
-      }}>
-        <div style={{
-          background: 'var(--surface)', borderRadius: 'var(--radius-lg)',
-          boxShadow: 'var(--shadow-lg)', width: '100%', maxWidth: 420,
-          padding: '32px 28px', display: 'flex', flexDirection: 'column',
-          gap: 16, animation: 'modal-in 0.16s ease',
-        }}>
-          {/* Icon */}
-          <div style={{
-            width: 48, height: 48, borderRadius: '50%',
-            background: 'var(--accent-100)', color: 'var(--accent-600)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 22,
-          }}>
-            ✋
-          </div>
-          {/* Text */}
-          <div>
-            <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 18, marginBottom: 8 }}>
-              Unsaved Changes
-            </div>
-            <div style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-              You have unsaved changes on this page. If you leave now, your work will be lost.
-            </div>
-          </div>
-          {/* Buttons */}
-          <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-            <button
-              className="btn btn-primary"
-              style={{ flex: 1 }}
-              onClick={() => blocker.reset()}
-            >
-              Stay on Page
-            </button>
-            <button
-              className="btn btn-secondary"
-              style={{ flex: 1 }}
-              onClick={() => {
-                clearDraft(id);
-                setIsDirty(false);
-                blocker.proceed();
-              }}
-            >
-              Discard & Leave
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
     <PageHead eyebrow={isEdit ? 'Edit Article' : 'New Article'} title={isEdit ? 'Edit News' : 'Add News'} desc="Create bilingual stories and use the server-backed editorial workflow." />
     {draftRestored && (
       <div style={{
@@ -265,12 +256,14 @@ export default function AddEditNews() {
           className="btn btn-secondary"
           style={{ fontSize: 12, padding: '4px 10px' }}
           onClick={() => {
+            didLoadInitialDataRef.current = false;
+            loadedDraftIdRef.current = null;
             clearDraft(id);
-            setForm(emptyForm);
             setDraftRestored(false);
+            setLoadVersion((version) => version + 1);
           }}
         >
-          Discard & Start Fresh
+          Discard Draft & Reload
         </button>
       </div>
     )}
@@ -309,6 +302,19 @@ export default function AddEditNews() {
               onChange={(e) => setForm((current) => ({ ...current, videoUrl: e.target.value }))}
             />
           </div>
+          {hasPermission('media.view') && references.videos.length > 0 && (
+            <select
+              className="select"
+              value={references.videos.find((item) => item.url === form.videoUrl)?.id || ''}
+              onChange={(e) => {
+                const media = references.videos.find((item) => String(item.id) === e.target.value);
+                setForm((current) => ({ ...current, videoUrl: media?.url || '' }));
+              }}
+            >
+              <option value="">Choose uploaded video from media library</option>
+              {references.videos.map((item) => <option key={item.id} value={item.id}>{item.name || item.originalName || `Video ${item.id}`}</option>)}
+            </select>
+          )}
         </div>
         <div className="field"><label>Tags</label><div className="tag-input-wrap">{form.tags.map((tag) => <span className="tag-chip" key={tag}>{tag}<button type="button" onClick={() => setField('tags', form.tags.filter((item) => item !== tag))}><X /></button></span>)}<input value={tagInput} onChange={(e) => setTagInput(e.target.value)} onKeyDown={addTag} placeholder="Type a tag and press Enter" /></div></div>
       </div>

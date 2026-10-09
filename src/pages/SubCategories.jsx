@@ -12,6 +12,11 @@ import { useAutoRefresh } from '../context/RefreshContext.jsx';
 const emptyForm = { name: '', slug: '', categoryId: '', description: '', status: 'active' };
 const messageOf = (error) => error?.message || 'Something went wrong. Please try again.';
 const categoryName = (subcategory, categories) => subcategory.parentCategory || categories.find((item) => String(item.id) === String(subcategory.parentCategoryId))?.name || '—';
+const slugify = (value) => String(value || '')
+  .trim()
+  .toLowerCase()
+  .replace(/[^a-z0-9]+/g, '-')
+  .replace(/^-+|-+$/g, '');
 
 export default function SubCategories() {
   const toast = useToast();
@@ -62,7 +67,7 @@ export default function SubCategories() {
     if (!form.categoryId) nextErrors.categoryId = 'Parent category is required.';
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
-    const payload = { name: form.name.trim(), slug: form.slug.trim() || undefined, parentCategory: Number(form.categoryId), description: form.description.trim() || null, status: form.status };
+    const payload = { name: form.name.trim(), slug: slugify(form.slug) || undefined, parentCategory: Number(form.categoryId), description: form.description.trim() || null, status: form.status };
     setSubmitting(true);
     try {
       if (editing) await taxonomyApi.subcategories.update(editing.id, payload); else await taxonomyApi.subcategories.create(payload);

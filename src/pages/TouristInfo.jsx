@@ -1,19 +1,24 @@
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { PageHead } from '../components/ui/PageHead.jsx';
 import { EmptyState } from '../components/ui/Badges.jsx';
 import Modal from '../components/ui/Modal.jsx';
 import ConfirmModal from '../components/ui/ConfirmModal.jsx';
-import { Plus, Edit2, Trash2, MapPin, Upload, X, ExternalLink } from '../components/ui/Icons.jsx';
-import { loadData, saveData } from '../utils/storage.js';
+import { Plus, Edit2, Trash2, MapPin, Upload, X } from '../components/ui/Icons.jsx';
+import { supportingApi } from '../api/supporting.js';
 import { mediaApi } from '../api/media.js';
 import { useToast } from '../context/ToastContext.jsx';
+import { useAutoRefresh } from '../context/RefreshContext.jsx';
 
-const EMPTY_FORM = { name: '', description: '', photo: '', mapLink: '', status: 'active' };
+const EMPTY_FORM = { name: '', description: '', photo: '', imageId: null, category: '', timings: '', entryFee: '', sortOrder: 0, status: 'active' };
+const messageOf = (error) => error?.message || 'Something went wrong. Please try again.';
 
 export default function TouristInfo() {
   const toast = useToast();
   const fileRef = useRef(null);
-  const [places, setPlaces] = useState(() => loadData('tourist_info', []));
+  const [places, setPlaces] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -21,7 +26,20 @@ export default function TouristInfo() {
   const [uploading, setUploading] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
-  const persist = (list) => { setPlaces(list); saveData('tourist_info', list); };
+  const loadPlaces = useCallback(async () => {
+    setLoading(true);
+    setLoadError('');
+    try {
+      setPlaces(await supportingApi.attractions.list());
+    } catch (error) {
+      setLoadError(messageOf(error));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadPlaces(); }, [loadPlaces]);
+  useAutoRefresh(loadPlaces);
 
   const openAdd = () => { setEditing(null); setForm(EMPTY_FORM); setErrors({}); setModalOpen(true); };
   const openEdit = (place) => {
@@ -44,7 +62,7 @@ export default function TouristInfo() {
     setUploading(true);
     try {
       const media = await mediaApi.upload(file, 'image');
-      setForm((p) => ({ ...p, photo: media.url }));
+      setForm((p) => ({ ...p, photo: media.url, imageId: media.id }));
       toast.success('Photo uploaded', file.name);
     } catch (err) {
       toast.error('Upload failed', err.message);
@@ -57,41 +75,48 @@ export default function TouristInfo() {
     const errs = {};
     if (!form.name.trim()) errs.name = 'Place name is required.';
     if (!form.description.trim()) errs.description = 'Description is required.';
-    if (form.mapLink.trim() && !/^https?:\/\/.+/.test(form.mapLink.trim())) {
-      errs.mapLink = 'Enter a valid URL starting with http:// or https://';
-    }
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
 
-  const submit = () => {
+  const submit = async () => {
     if (!validate()) return;
-    const data = {
-      name: form.name.trim(),
-      description: form.description.trim(),
-      photo: form.photo,
-      mapLink: form.mapLink.trim(),
-      status: form.status,
-    };
-    if (editing) {
-      persist(places.map((p) => (p.id === editing.id ? { ...p, ...data } : p)));
-      toast.success('Place updated', `"${data.name}" has been saved.`);
-    } else {
-      persist([{ id: Date.now(), ...data, createdAt: new Date().toISOString().slice(0, 10) }, ...places]);
-      toast.success('Tourist place added', `"${data.name}" was added successfully.`);
+    setSubmitting(true);
+    try {
+      if (editing) await supportingApi.attractions.update(editing.id, form);
+      else await supportingApi.attractions.create(form);
+      await loadPlaces();
+      setModalOpen(false);
+      toast.success(editing ? 'Place updated' : 'Tourist place added', `"${form.name.trim()}" has been saved.`);
+    } catch (error) {
+      setErrors({ submit: messageOf(error) });
+    } finally {
+      setSubmitting(false);
     }
-    setModalOpen(false);
   };
 
-  const confirmDelete = () => {
-    persist(places.filter((p) => p.id !== deleteTarget.id));
-    toast.success('Place deleted', `"${deleteTarget.name}" was removed.`);
-    setDeleteTarget(null);
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await supportingApi.attractions.remove(deleteTarget.id);
+      await loadPlaces();
+      toast.success('Place deleted', `"${deleteTarget.name}" was removed.`);
+    } catch (error) {
+      toast.error('Unable to delete place', messageOf(error));
+    } finally {
+      setDeleteTarget(null);
+    }
   };
 
-  const toggleStatus = (place) => {
-    persist(places.map((p) => (p.id === place.id ? { ...p, status: p.status === 'active' ? 'inactive' : 'active' } : p)));
-    toast.info('Status updated', `"${place.name}" is now ${place.status === 'active' ? 'inactive' : 'active'}.`);
+  const toggleStatus = async (place) => {
+    const nextStatus = place.status === 'active' ? 'inactive' : 'active';
+    try {
+      await supportingApi.attractions.update(place.id, { status: nextStatus });
+      await loadPlaces();
+      toast.info('Status updated', `"${place.name}" is now ${nextStatus}.`);
+    } catch (error) {
+      toast.error('Unable to update status', messageOf(error));
+    }
   };
 
   return (
@@ -107,7 +132,11 @@ export default function TouristInfo() {
         }
       />
 
-      {places.length === 0 ? (
+      {loading ? (
+        <div className="card"><div className="empty-state"><div className="t">Loading tourist places...</div></div></div>
+      ) : loadError ? (
+        <div className="card"><div className="empty-state"><div className="t">Unable to load tourist places</div><div>{loadError}</div><button className="btn btn-secondary" onClick={loadPlaces}>Retry</button></div></div>
+      ) : places.length === 0 ? (
         <div className="card">
           <EmptyState icon={MapPin} title="No tourist places yet" message="Click 'Add Tourist Place' to get started." />
         </div>
@@ -146,17 +175,7 @@ export default function TouristInfo() {
                   {place.description.length > 100 ? place.description.slice(0, 100) + '…' : place.description}
                 </div>
 
-                {/* Map link */}
-                {place.mapLink && (
-                  <a
-                    href={place.mapLink}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--accent)', marginBottom: 12 }}
-                  >
-                    <MapPin style={{ width: 12, height: 12 }} /> View on Map
-                  </a>
-                )}
+                {place.category && <div className="faint" style={{ fontSize: 11, marginBottom: 8 }}>{place.category}</div>}
 
                 {/* Added date */}
                 <div className="faint" style={{ fontSize: 11, marginBottom: 12 }}>Added {place.createdAt}</div>
@@ -179,14 +198,14 @@ export default function TouristInfo() {
       {/* Add / Edit Modal */}
       <Modal
         open={modalOpen}
-        onClose={() => !uploading && setModalOpen(false)}
+        onClose={() => !uploading && !submitting && setModalOpen(false)}
         title={editing ? 'Edit Tourist Place' : 'Add Tourist Place'}
         wide
         footer={
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-            <button className="btn btn-secondary" onClick={() => setModalOpen(false)}>Cancel</button>
-            <button className="btn btn-primary" disabled={uploading} onClick={submit}>
-              {editing ? 'Save Changes' : 'Add Place'}
+            <button className="btn btn-secondary" disabled={uploading || submitting} onClick={() => setModalOpen(false)}>Cancel</button>
+            <button className="btn btn-primary" disabled={uploading || submitting} onClick={submit}>
+              {submitting ? 'Saving...' : editing ? 'Save Changes' : 'Add Place'}
             </button>
           </div>
         }
@@ -228,7 +247,7 @@ export default function TouristInfo() {
                 <button
                   type="button"
                   className="remove-btn"
-                  onClick={() => setForm((p) => ({ ...p, photo: '' }))}
+                  onClick={() => setForm((p) => ({ ...p, photo: '', imageId: null }))}
                 >
                   <X />
                 </button>
@@ -256,25 +275,26 @@ export default function TouristInfo() {
             <input ref={fileRef} type="file" accept="image/*" hidden onChange={handlePhoto} />
           </div>
 
-          {/* Map Link */}
-          <div className="field">
-            <label>
-              <MapPin style={{ width: 13, height: 13, marginRight: 4, verticalAlign: -2 }} />
-              Google Maps / Map Link
-            </label>
-            <input
-              className={`input ${errors.mapLink ? 'error' : ''}`}
-              placeholder="https://maps.google.com/..."
-              type="url"
-              value={form.mapLink}
-              onChange={(e) => setForm((p) => ({ ...p, mapLink: e.target.value }))}
-            />
-            {errors.mapLink && <div className="field-error">{errors.mapLink}</div>}
-            {form.mapLink && !errors.mapLink && (
-              <a href={form.mapLink} target="_blank" rel="noreferrer" style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4, color: 'var(--accent)' }}>
-                <ExternalLink style={{ width: 11, height: 11 }} /> Preview link
-              </a>
-            )}
+          <div className="grid-2">
+            <div className="field">
+              <label>Category</label>
+              <input className="input" placeholder="e.g. Monument" value={form.category} onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))} />
+            </div>
+            <div className="field">
+              <label>Timings</label>
+              <input className="input" placeholder="e.g. 8:00 AM - 5:00 PM" value={form.timings} onChange={(e) => setForm((p) => ({ ...p, timings: e.target.value }))} />
+            </div>
+          </div>
+
+          <div className="grid-2">
+            <div className="field">
+              <label>Entry Fee</label>
+              <input className="input" placeholder="e.g. Free / Rs. 20" value={form.entryFee} onChange={(e) => setForm((p) => ({ ...p, entryFee: e.target.value }))} />
+            </div>
+            <div className="field">
+              <label>Sort Order</label>
+              <input className="input" type="number" min="0" value={form.sortOrder} onChange={(e) => setForm((p) => ({ ...p, sortOrder: e.target.value }))} />
+            </div>
           </div>
 
           {/* Status */}
@@ -285,6 +305,7 @@ export default function TouristInfo() {
               <option value="inactive">Inactive</option>
             </select>
           </div>
+          {errors.submit && <div className="field-error">{errors.submit}</div>}
 
         </div>
       </Modal>
